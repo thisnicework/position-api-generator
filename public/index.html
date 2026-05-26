@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Controller - Dot Control Dashboard</title>
+  <!-- Google Fonts for premium typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-area">
+        <div class="pulse-dot"></div>
+        <h1>API Controller</h1>
+      </div>
+      <div class="system-status">
+        <span class="status-label">Network Status:</span>
+        <span id="connection-badge" class="badge badge-disconnected">OFFLINE</span>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <div class="main-grid">
+      <!-- Left Control Panel -->
+      <aside class="control-panel">
+        <!-- Configuration Section -->
+        <section class="panel-section">
+          <h2>Configuration</h2>
+          <div class="form-group">
+            <label for="comm-protocol">Protocol</label>
+            <select id="comm-protocol">
+              <option value="ws">WebSocket (Low Latency)</option>
+              <option value="http" selected>HTTP POST (REST API)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="server-address">Server Address</label>
+            <input type="text" id="server-address" value="http://localhost:5005/api/state">
+          </div>
+          <div class="form-group">
+            <label for="tx-interval">TX Interval (ms)</label>
+            <div class="range-container">
+              <input type="range" id="tx-interval" min="50" max="1000" step="50" value="200">
+              <span id="interval-val">200 ms</span>
+            </div>
+          </div>
+          <button id="connect-btn" class="btn btn-primary">Connect / Apply</button>
+        </section>
+
+        <!-- Live Telemetry Section -->
+        <section class="panel-section">
+          <h2>Telemetry</h2>
+          <div class="telemetry-grid">
+            <div class="tel-item">
+              <span class="tel-label">X Coordinate</span>
+              <span id="tel-x" class="tel-value">0.00</span>
+            </div>
+            <div class="tel-item">
+              <span class="tel-label">Y Coordinate</span>
+              <span id="tel-y" class="tel-value">0.00</span>
+            </div>
+            <div class="tel-item">
+              <span class="tel-label">Rotation Angle</span>
+              <span id="tel-r" class="tel-value">0°</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Instruction Section -->
+        <section class="panel-section instructions">
+          <h2>Controls</h2>
+          <div class="keyboard-guide">
+            <div class="guide-row">
+              <span class="key-cap">▲</span>
+              <span class="key-cap">▼</span>
+              <span class="key-cap">◀</span>
+              <span class="key-cap">▶</span>
+              <span class="guide-desc">Move Dot</span>
+            </div>
+            <div class="guide-row">
+              <span class="key-cap">Q</span>
+              <span class="guide-desc">Rotate CCW (Left)</span>
+            </div>
+            <div class="guide-row">
+              <span class="key-cap">E</span>
+              <span class="guide-desc">Rotate CW (Right)</span>
+            </div>
+            <div class="guide-row">
+              <span class="key-cap font-sm">Space</span>
+              <span class="guide-desc">Slow</span>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <!-- Right Visualizer & Logging -->
+      <main class="visualizer-container">
+        <div class="canvas-wrapper">
+          <canvas id="control-canvas"></canvas>
+          <div class="canvas-overlay">
+            <span class="coordinate-marker label-bottom-left">(0,0)</span>
+            <span class="coordinate-marker label-top-left">Y (5000)</span>
+            <span class="coordinate-marker label-bottom-right">X (5000)</span>
+          </div>
+        </div>
+
+        <!-- Terminal Logs -->
+        <div class="terminal-panel">
+          <div class="terminal-header">
+            <span>Transmission Log</span>
+            <button id="clear-terminal" class="btn btn-text">Clear</button>
+          </div>
+          <div id="terminal-body" class="terminal-body">
+            <div class="log-line system-log">System initialized. Awaiting user interaction...</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+
+</html>
