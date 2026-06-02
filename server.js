@@ -48,6 +48,11 @@ app.post('/api/state', (req, res) => {
   res.json({ status: 'ok', received: latestState });
 });
 
+// HTTP GET endpoint to retrieve the latest state
+app.get('/api/state', (req, res) => {
+  res.json(latestState);
+});
+
 server.on('upgrade', (request, socket, head) => {
   if (request.url === '/ws') {
     wss.handleUpgrade(request, socket, head, (ws) => {

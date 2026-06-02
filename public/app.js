@@ -55,7 +55,8 @@ const keys = {
 
 // --- Networking State ---
 let activeProtocol = 'http'; // 'http', 'ws', or 'supabase'
-let apiEndpoint = 'http://localhost:5005/api/state';
+const currentOrigin = window.location.origin.includes('file://') ? 'http://localhost:5005' : window.location.origin;
+let apiEndpoint = `${currentOrigin}/api/state`;
 let transmitInterval = 200; // ms
 let transmitIntervalId = null;
 let wsClient = null;
@@ -89,10 +90,12 @@ function updateProtocolUI() {
   } else {
     localConfigGroup.style.display = 'block';
     supabaseConfigGroup.style.display = 'none';
+    
+    const currentOrigin = window.location.origin.includes('file://') ? 'http://localhost:5005' : window.location.origin;
     if (proto === 'ws') {
-      addressInput.value = 'ws://localhost:5005/ws';
+      addressInput.value = `${currentOrigin.replace(/^http/, 'ws')}/ws`;
     } else {
-      addressInput.value = 'http://localhost:5005/api/state';
+      addressInput.value = `${currentOrigin}/api/state`;
     }
   }
 }
