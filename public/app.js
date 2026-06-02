@@ -1,7 +1,6 @@
 // --- DOM Elements ---
 const canvas = document.getElementById('control-canvas');
 const ctx = canvas.getContext('2d');
-const protocolSelect = document.getElementById('comm-protocol');
 const addressInput = document.getElementById('server-address');
 const intervalSlider = document.getElementById('tx-interval');
 const intervalVal = document.getElementById('interval-val');
@@ -9,12 +8,6 @@ const connectBtn = document.getElementById('connect-btn');
 const connectionBadge = document.getElementById('connection-badge');
 const clearTerminalBtn = document.getElementById('clear-terminal');
 const terminalBody = document.getElementById('terminal-body');
-
-// Supabase-specific DOM elements
-const localConfigGroup = document.getElementById('local-config-group');
-const supabaseConfigGroup = document.getElementById('supabase-config-group');
-const supabaseUrlInput = document.getElementById('supabase-url');
-const supabaseKeyInput = document.getElementById('supabase-key');
 
 // Telemetry Fields
 const telX = document.getElementById('tel-x');
@@ -54,16 +47,11 @@ const keys = {
 };
 
 // --- Networking State ---
-let activeProtocol = 'http'; // 'http', 'ws', or 'supabase'
 const currentOrigin = window.location.origin.includes('file://') ? 'http://localhost:5005' : window.location.origin;
 let apiEndpoint = `${currentOrigin}/api/state`;
 let transmitInterval = 200; // ms
 let transmitIntervalId = null;
-let wsClient = null;
 let connectionState = 'disconnected'; // 'disconnected', 'connecting', 'connected'
-
-// Supabase State
-let supabaseClient = null;
 
 // --- Initialize Event Listeners ---
 window.addEventListener('keydown', (e) => {
@@ -80,29 +68,6 @@ window.addEventListener('keyup', (e) => {
   if (key in keys) {
     keys[key] = false;
   }
-});
-
-function updateProtocolUI() {
-  const proto = protocolSelect.value;
-  if (proto === 'supabase') {
-    localConfigGroup.style.display = 'none';
-    supabaseConfigGroup.style.display = 'block';
-  } else {
-    localConfigGroup.style.display = 'block';
-    supabaseConfigGroup.style.display = 'none';
-    
-    const currentOrigin = window.location.origin.includes('file://') ? 'http://localhost:5005' : window.location.origin;
-    if (proto === 'ws') {
-      addressInput.value = `${currentOrigin.replace(/^http/, 'ws')}/ws`;
-    } else {
-      addressInput.value = `${currentOrigin}/api/state`;
-    }
-  }
-}
-
-protocolSelect.addEventListener('change', () => {
-  updateProtocolUI();
-  localStorage.setItem('comm_protocol', protocolSelect.value);
 });
 
 intervalSlider.addEventListener('input', (e) => {
@@ -124,99 +89,18 @@ function setupConnection() {
     clearInterval(transmitIntervalId);
     transmitIntervalId = null;
   }
-  if (wsClient) {
-    wsClient.close();
-    wsClient = null;
-  }
 
-  activeProtocol = protocolSelect.value;
+  apiEndpoint = addressInput.value.trim();
   transmitInterval = parseInt(intervalSlider.value);
 
   updateConnectionStatus('connecting', 'CONNECTING...');
+  logTerminal('system', `Initializing communication interface... Interval: ${transmitInterval}ms`);
 
-  if (activeProtocol === 'supabase') {
-    const url = supabaseUrlInput.value.trim();
-    const key = supabaseKeyInput.value.trim();
-    
-    if (!url || !key) {
-      logTerminal('error', 'Supabase URL and Anon Key are required!');
-      updateConnectionStatus('disconnected', 'CONFIG ERROR');
-      return;
-    }
-    
-    // Save credentials to localStorage
-    localStorage.setItem('supabase_url', url);
-    localStorage.setItem('supabase_key', key);
-    
-    logTerminal('system', `Initializing Supabase client... Interval: ${transmitInterval}ms`);
-    initSupabase(url, key);
-  } else {
-    apiEndpoint = addressInput.value.trim();
-    logTerminal('system', `Initializing communication interface... Protocol: ${activeProtocol.toUpperCase()}, Interval: ${transmitInterval}ms`);
+  // Save custom address to localStorage for convenience
+  localStorage.setItem('server_address', apiEndpoint);
 
-    if (activeProtocol === 'ws') {
-      initWebSocket();
-    } else {
-      updateConnectionStatus('connected', 'HTTP ONLINE');
-      startTransmissionLoop();
-    }
-  }
-}
-
-function initSupabase(url, key) {
-  try {
-    if (typeof supabase === 'undefined') {
-      throw new Error('Supabase SDK not loaded. Check internet connection or CDN script tag.');
-    }
-    
-    supabaseClient = supabase.createClient(url, key);
-    
-    updateConnectionStatus('connected', 'SUPABASE ONLINE');
-    logTerminal('success', `Supabase Client initialized. Writing to table 'position_state'.`);
-    startTransmissionLoop();
-  } catch (err) {
-    logTerminal('error', `Failed to initialize Supabase: ${err.message}`);
-    updateConnectionStatus('disconnected', 'SUPABASE ERROR');
-  }
-}
-
-function initWebSocket() {
-  try {
-    wsClient = new WebSocket(apiEndpoint);
-
-    wsClient.onopen = () => {
-      updateConnectionStatus('connected', 'WS CONNECTED');
-      logTerminal('success', `WebSocket connected to ${apiEndpoint}`);
-      startTransmissionLoop();
-    };
-
-    wsClient.onmessage = (event) => {
-      // Handle acknowledgment or feedback from backend
-      try {
-        const data = JSON.parse(event.data);
-        if (data.status === 'ack') {
-          // Can measure latency if needed
-        }
-      } catch (err) {}
-    };
-
-    wsClient.onerror = (err) => {
-      logTerminal('error', `WebSocket error connecting to ${apiEndpoint}`);
-      updateConnectionStatus('disconnected', 'WS ERROR');
-    };
-
-    wsClient.onclose = () => {
-      logTerminal('system', `WebSocket connection closed.`);
-      updateConnectionStatus('disconnected', 'OFFLINE');
-      if (transmitIntervalId) {
-        clearInterval(transmitIntervalId);
-        transmitIntervalId = null;
-      }
-    };
-  } catch (err) {
-    logTerminal('error', `Failed to build WebSocket: ${err.message}`);
-    updateConnectionStatus('disconnected', 'OFFLINE');
-  }
+  updateConnectionStatus('connected', 'ONLINE');
+  startTransmissionLoop();
 }
 
 function updateConnectionStatus(stateClass, label) {
@@ -233,7 +117,7 @@ function startTransmissionLoop() {
   logTerminal('system', `Started transmission loop. Interval: ${transmitInterval}ms`);
 }
 
-// --- Transmit State via selected Protocol ---
+// --- Transmit State via HTTP POST ---
 function transmitState() {
   const payload = {
     x: parseFloat(state.x.toFixed(2)),
@@ -242,39 +126,22 @@ function transmitState() {
     timestamp: Date.now()
   };
 
-  if (activeProtocol === 'ws' && wsClient && wsClient.readyState === WebSocket.OPEN) {
-    wsClient.send(JSON.stringify(payload));
-    logTransmission(payload, 'WS SEND');
-  } else if (activeProtocol === 'http') {
-    fetch(apiEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-    .then(response => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
-    })
-    .then(data => {
-      logTransmission(payload, `HTTP 200 OK`);
-    })
-    .catch(err => {
-      logTerminal('error', `Transmit fail: ${err.message}`);
-      updateConnectionStatus('disconnected', 'HTTP ERROR');
-    });
-  } else if (activeProtocol === 'supabase' && supabaseClient) {
-    // Database Upsert directly at the transmit interval rate (no sockets)
-    supabaseClient
-      .from('position_state')
-      .upsert({ id: 1, ...payload })
-      .then(({ error }) => {
-        if (error) {
-          logTerminal('error', `Supabase DB Write error: ${error.message}`);
-        } else {
-          logTransmission(payload, 'SB DB UPSERT');
-        }
-      });
-  }
+  fetch(apiEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(response => {
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  })
+  .then(data => {
+    logTransmission(payload, `HTTP 200 OK`);
+  })
+  .catch(err => {
+    logTerminal('error', `Transmit fail: ${err.message}`);
+    updateConnectionStatus('disconnected', 'ERROR');
+  });
 }
 
 function logTransmission(payload, statusText) {
@@ -497,16 +364,14 @@ function render() {
 }
 
 // Start everything
-if (localStorage.getItem('supabase_url')) {
-  supabaseUrlInput.value = localStorage.getItem('supabase_url');
+const savedAddress = localStorage.getItem('server_address');
+if (savedAddress) {
+  addressInput.value = savedAddress;
+} else {
+  // Fallback to default relative origin address
+  const currentOrigin = window.location.origin.includes('file://') ? 'http://localhost:5005' : window.location.origin;
+  addressInput.value = `${currentOrigin}/api/state`;
 }
-if (localStorage.getItem('supabase_key')) {
-  supabaseKeyInput.value = localStorage.getItem('supabase_key');
-}
-if (localStorage.getItem('comm_protocol')) {
-  protocolSelect.value = localStorage.getItem('comm_protocol');
-}
-updateProtocolUI();
 
 setupConnection();
 requestAnimationFrame(mainLoop);
