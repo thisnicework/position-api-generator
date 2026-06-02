@@ -164,7 +164,8 @@ body {
 }
 
 .form-group select,
-.form-group input[type="text"] {
+.form-group input[type="text"],
+.form-group input[type="password"] {
   width: 100%;
   background-color: #ffffff;
   border: 1px solid var(--border-color);
@@ -178,7 +179,8 @@ body {
 }
 
 .form-group select:focus,
-.form-group input[type="text"]:focus {
+.form-group input[type="text"]:focus,
+.form-group input[type="password"]:focus {
   border-color: var(--accent-cyan);
   box-shadow: var(--shadow-glow);
 }

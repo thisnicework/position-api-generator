@@ -14,6 +14,21 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Store latest state in server memory
 let latestState = { x: 0, y: 0, rotation: 0, timestamp: 0, method: 'none' };
 
+// Create HTTP server
+const server = http.createServer(app);
+
+// Create WebSocket server attached to HTTP server
+const wss = new WebSocket.Server({ noServer: true });
+
+// Broadcast function to send data to all connected WebSocket clients (like TouchDesigner)
+function broadcast(data) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(data));
+    }
+  });
+}
+
 // HTTP POST endpoint for state updates
 app.post('/api/state', (req, res) => {
   const { x, y, rotation, timestamp } = req.body;
@@ -27,14 +42,11 @@ app.post('/api/state', (req, res) => {
   // Log receipt in a formatted way
   logState('HTTP', latestState);
   
+  // Broadcast to all WebSocket clients (TouchDesigner)
+  broadcast({ type: 'state', ...latestState });
+  
   res.json({ status: 'ok', received: latestState });
 });
-
-// Create HTTP server
-const server = http.createServer(app);
-
-// Create WebSocket server attached to HTTP server
-const wss = new WebSocket.Server({ noServer: true });
 
 server.on('upgrade', (request, socket, head) => {
   if (request.url === '/ws') {
@@ -49,6 +61,9 @@ server.on('upgrade', (request, socket, head) => {
 wss.on('connection', (ws) => {
   console.log('\x1b[36m[WS] Client connected\x1b[0m');
   
+  // Send latest state to newly connected client (TouchDesigner) immediately
+  ws.send(JSON.stringify({ type: 'state', ...latestState }));
+  
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message);
@@ -57,7 +72,10 @@ wss.on('connection', (ws) => {
       latestState = { x, y, rotation, timestamp, method: 'WebSocket' };
       logState('WS', latestState);
       
-      // Optionally echo back or broadcast to other clients
+      // Broadcast state to all other connected clients
+      broadcast({ type: 'state', ...latestState });
+      
+      // Echo back acknowledgment to sender
       ws.send(JSON.stringify({ status: 'ack', timestamp }));
     } catch (err) {
       ws.send(JSON.stringify({ error: 'Invalid JSON format' }));
