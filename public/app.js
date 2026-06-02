@@ -96,9 +96,6 @@ function setupConnection() {
   updateConnectionStatus('connecting', 'CONNECTING...');
   logTerminal('system', `Initializing communication interface... Interval: ${transmitInterval}ms`);
 
-  // Save custom address to localStorage for convenience
-  localStorage.setItem('server_address', apiEndpoint);
-
   updateConnectionStatus('connected', 'ONLINE');
   startTransmissionLoop();
 }
@@ -364,14 +361,8 @@ function render() {
 }
 
 // Start everything
-const savedAddress = localStorage.getItem('server_address');
-if (savedAddress) {
-  addressInput.value = savedAddress;
-} else {
-  // Fallback to default relative origin address
-  const currentOrigin = window.location.origin.includes('file://') ? 'http://localhost:5005' : window.location.origin;
-  addressInput.value = `${currentOrigin}/api/state`;
-}
+addressInput.value = "https://position-api-generator.onrender.com/api/state";
+apiEndpoint = addressInput.value;
 
 setupConnection();
 requestAnimationFrame(mainLoop);
