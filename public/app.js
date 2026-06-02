@@ -53,6 +53,9 @@ let transmitInterval = 200; // ms
 let transmitIntervalId = null;
 let connectionState = 'disconnected'; // 'disconnected', 'connecting', 'connected'
 
+// Track last sent state to only send when values change
+let lastTransmittedState = { x: null, y: null, rotation: null };
+
 // --- Initialize Event Listeners ---
 window.addEventListener('keydown', (e) => {
   const key = e.key === ' ' ? 'Space' : e.key;
@@ -116,10 +119,30 @@ function startTransmissionLoop() {
 
 // --- Transmit State via HTTP POST ---
 function transmitState() {
+  const currentX = parseFloat(state.x.toFixed(2));
+  const currentY = parseFloat(state.y.toFixed(2));
+  const currentRotation = Math.round(state.rotation);
+
+  // Skip sending if values haven't changed
+  if (
+    currentX === lastTransmittedState.x &&
+    currentY === lastTransmittedState.y &&
+    currentRotation === lastTransmittedState.rotation
+  ) {
+    return;
+  }
+
+  // Update last transmitted values
+  lastTransmittedState = {
+    x: currentX,
+    y: currentY,
+    rotation: currentRotation
+  };
+
   const payload = {
-    x: parseFloat(state.x.toFixed(2)),
-    y: parseFloat(state.y.toFixed(2)),
-    rotation: Math.round(state.rotation),
+    x: currentX,
+    y: currentY,
+    rotation: currentRotation,
     timestamp: Date.now()
   };
 
