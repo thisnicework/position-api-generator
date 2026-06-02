@@ -63,9 +63,6 @@ let connectionState = 'disconnected'; // 'disconnected', 'connecting', 'connecte
 
 // Supabase State
 let supabaseClient = null;
-let supabaseChannel = null;
-let lastDbUpsertTime = 0;
-const dbUpsertThrottleMs = 400; // Throttle DB writes to once per 400ms to respect rate limits
 
 // --- Initialize Event Listeners ---
 window.addEventListener('keydown', (e) => {
@@ -118,7 +115,6 @@ clearTerminalBtn.addEventListener('click', () => {
   terminalBody.innerHTML = '';
 });
 
-// --- Setup Connection / API transmission loop ---
 function setupConnection() {
   // Clean up existing loops/connections
   if (transmitIntervalId) {
@@ -128,12 +124,6 @@ function setupConnection() {
   if (wsClient) {
     wsClient.close();
     wsClient = null;
-  }
-  if (supabaseChannel) {
-    if (supabaseClient) {
-      supabaseClient.removeChannel(supabaseChannel);
-    }
-    supabaseChannel = null;
   }
 
   activeProtocol = protocolSelect.value;
@@ -178,25 +168,9 @@ function initSupabase(url, key) {
     
     supabaseClient = supabase.createClient(url, key);
     
-    // Create a real-time broadcast channel named 'position-api'
-    supabaseChannel = supabaseClient.channel('position-api', {
-      config: {
-        broadcast: {
-          self: true
-        }
-      }
-    });
-
-    supabaseChannel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        updateConnectionStatus('connected', 'SUPABASE ONLINE');
-        logTerminal('success', `Subscribed to Supabase Realtime Broadcast channel: position-api`);
-        startTransmissionLoop();
-      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-        logTerminal('error', `Supabase connection failed / status: ${status}`);
-        updateConnectionStatus('disconnected', 'SUPABASE ERROR');
-      }
-    });
+    updateConnectionStatus('connected', 'SUPABASE ONLINE');
+    logTerminal('success', `Supabase Client initialized. Writing to table 'position_state'.`);
+    startTransmissionLoop();
   } catch (err) {
     logTerminal('error', `Failed to initialize Supabase: ${err.message}`);
     updateConnectionStatus('disconnected', 'SUPABASE ERROR');
@@ -285,32 +259,18 @@ function transmitState() {
       logTerminal('error', `Transmit fail: ${err.message}`);
       updateConnectionStatus('disconnected', 'HTTP ERROR');
     });
-  } else if (activeProtocol === 'supabase' && supabaseClient && supabaseChannel) {
-    // 1. WebSocket Broadcast (ultra-low latency, real-time)
-    supabaseChannel.send({
-      type: 'broadcast',
-      event: 'state',
-      payload: payload
-    });
-    
-    logTransmission(payload, 'SB BROADCAST');
-
-    // 2. Database Upsert (throttled to avoid hitting rate limits)
-    const now = Date.now();
-    if (now - lastDbUpsertTime >= dbUpsertThrottleMs) {
-      lastDbUpsertTime = now;
-      
-      supabaseClient
-        .from('position_state')
-        .upsert({ id: 1, ...payload })
-        .then(({ error }) => {
-          if (error) {
-            logTerminal('error', `Supabase DB Write error: ${error.message}`);
-          } else {
-            logTerminal('success', `Supabase DB Upsert OK (id=1)`);
-          }
-        });
-    }
+  } else if (activeProtocol === 'supabase' && supabaseClient) {
+    // Database Upsert directly at the transmit interval rate (no sockets)
+    supabaseClient
+      .from('position_state')
+      .upsert({ id: 1, ...payload })
+      .then(({ error }) => {
+        if (error) {
+          logTerminal('error', `Supabase DB Write error: ${error.message}`);
+        } else {
+          logTransmission(payload, 'SB DB UPSERT');
+        }
+      });
   }
 }
 
