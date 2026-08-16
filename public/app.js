@@ -24,7 +24,7 @@ const state = {
   vy: 0,         // Velocity Y
   rotation: 0,   // Angle in degrees (0 - 360)
   vRotation: 0,  // Rotational velocity (deg/frame)
-  action: 4,     // Action mode state code (default: 4)
+  action: 3,     // Action mode state code 0..6 (default: 3)
 };
 
 const settings = {
@@ -74,12 +74,12 @@ function determineActionCode() {
   const rotSpeed = Math.abs(state.vRotation);
   const now = Date.now();
 
-  // Mode 7: (2500, 5000)에 근접했을 때 (within 400 units of top point)
+  // Mode 6 (was 7): (2500, 5000)에 근접했을 때 (within 400 units of top point)
   if (distToTop <= 400) {
-    return 7;
+    return 6;
   }
 
-  // Mode 6: 원 보더 방향으로 1.5초 이상 이동 (이때 원 보더와 가까운 위치에 있어야함)
+  // Mode 5 (was 6): 원 보더 방향으로 1.5초 이상 이동 (이때 원 보더와 가까운 위치에 있어야함)
   const isNearBorder = distFromCenter >= 1900;
   const nx = distFromCenter > 0 ? (state.x - 2500) / distFromCenter : 0;
   const ny = distFromCenter > 0 ? (state.y - 2500) / distFromCenter : 0;
@@ -95,19 +95,19 @@ function determineActionCode() {
       actionTracker.borderMoveStartTime = now;
     }
     if (now - actionTracker.borderMoveStartTime >= 1500) {
-      return 6;
+      return 5;
     }
   } else {
     actionTracker.borderMoveStartTime = null;
   }
 
-  // Mode 3: 제자리에서 빙빙 (Spinning in place)
+  // Mode 2 (was 3): 제자리에서 빙빙 (Spinning in place)
   const isSpinningKeys = keys.q || keys.Q || keys.e || keys.E || rotSpeed > 0.6;
   if (isSpinningKeys && linearSpeed < 3.5) {
-    return 3;
+    return 2;
   }
 
-  // Mode 2: 원을 그리며 이동 (원의 기준은 1.2바퀴 = 432도 이상)
+  // Mode 1 (was 2): 원을 그리며 이동 (원의 기준은 1.2바퀴 = 432도 이상)
   if (linearSpeed > 2.0 && (rotSpeed > 0.3 || (keys.ArrowUp || keys.ArrowDown) && (keys.ArrowLeft || keys.ArrowRight || keys.q || keys.e))) {
     const currentHeading = Math.atan2(state.vy, state.vx) * (180 / Math.PI);
     if (actionTracker.lastHeadingAngle !== null) {
@@ -129,7 +129,7 @@ function determineActionCode() {
     actionTracker.lastHeadingAngle = currentHeading;
 
     if (actionTracker.accumulatedTurnAngle >= 432) {
-      return 2;
+      return 1;
     }
   } else {
     actionTracker.accumulatedTurnAngle = Math.max(0, actionTracker.accumulatedTurnAngle - 8);
@@ -137,8 +137,8 @@ function determineActionCode() {
     actionTracker.lastTurnSign = 0;
   }
 
-  // Mode 4: 기본
-  return 4;
+  // Mode 3 (was 4): 기본
+  return 3;
 }
 
 // --- Initialize Event Listeners ---
@@ -207,7 +207,7 @@ function transmitState() {
   const currentX = parseFloat(state.x.toFixed(2));
   const currentY = parseFloat(state.y.toFixed(2));
   const currentRotation = Math.round(state.rotation);
-  const currentAction = state.action || 4;
+  const currentAction = state.action !== undefined ? state.action : 3;
 
   // Skip sending if values haven't changed
   if (
@@ -398,13 +398,13 @@ function updatePhysics() {
 
   if (telA) {
     const actionLabels = {
-      2: '2 (Circling >= 1.2 turns)',
-      3: '3 (Spinning in Place)',
-      4: '4 (Default)',
-      6: '6 (Border Push >= 1.5s)',
-      7: '7 (Near Top 2500, 5000)',
+      1: '1 (Circling >= 1.2 turns)',
+      2: '2 (Spinning in Place)',
+      3: '3 (Default)',
+      5: '5 (Border Push >= 1.5s)',
+      6: '6 (Near Top 2500, 5000)',
     };
-    telA.textContent = actionLabels[state.action] || `${state.action}`;
+    telA.textContent = actionLabels[state.action] !== undefined ? actionLabels[state.action] : `${state.action}`;
   }
 }
 
