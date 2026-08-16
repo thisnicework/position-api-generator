@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Store latest state in server memory
-let latestState = { x: 0, y: 0, rotation: 0, timestamp: 0, method: 'none' };
+let latestState = { x: 2500, y: 2500, rotation: 0, action: 4, timestamp: 0, method: 'none' };
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -31,13 +31,14 @@ function broadcast(data) {
 
 // HTTP POST endpoint for state updates
 app.post('/api/state', (req, res) => {
-  const { x, y, rotation, timestamp } = req.body;
+  const { x, y, rotation, action, timestamp } = req.body;
   
   if (typeof x !== 'number' || typeof y !== 'number' || typeof rotation !== 'number') {
     return res.status(400).json({ error: 'Invalid state format. Require x, y, rotation numbers.' });
   }
 
-  latestState = { x, y, rotation, timestamp, method: 'HTTP POST' };
+  const actionCode = typeof action === 'number' ? action : 4;
+  latestState = { x, y, rotation, action: actionCode, timestamp, method: 'HTTP POST' };
   
   // Log receipt in a formatted way
   logState('HTTP', latestState);
@@ -72,9 +73,10 @@ wss.on('connection', (ws) => {
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message);
-      const { x, y, rotation, timestamp } = data;
+      const { x, y, rotation, action, timestamp } = data;
       
-      latestState = { x, y, rotation, timestamp, method: 'WebSocket' };
+      const actionCode = typeof action === 'number' ? action : 4;
+      latestState = { x, y, rotation, action: actionCode, timestamp, method: 'WebSocket' };
       logState('WS', latestState);
       
       // Broadcast state to all other connected clients
@@ -98,9 +100,10 @@ function logState(type, state) {
   const xStr = state.x.toFixed(1).padStart(6, ' ');
   const yStr = state.y.toFixed(1).padStart(6, ' ');
   const rStr = state.rotation.toFixed(0).padStart(3, ' ');
+  const aStr = String(state.action || 4).padStart(2, ' ');
   
   const typeColor = type === 'HTTP' ? '\x1b[33m' : '\x1b[32m'; // Yellow for HTTP, Green for WS
-  console.log(`${typeColor}[${type}]\x1b[0m Time: ${timeStr} | Position: (\x1b[35mX:${xStr}\x1b[0m, \x1b[35mY:${yStr}\x1b[0m) | Angle: \x1b[36m${rStr}°\x1b[0m`);
+  console.log(`${typeColor}[${type}]\x1b[0m Time: ${timeStr} | Position: (\x1b[35mX:${xStr}\x1b[0m, \x1b[35mY:${yStr}\x1b[0m) | Angle: \x1b[36m${rStr}°\x1b[0m | Action: \x1b[33m${aStr}\x1b[0m`);
 }
 
 server.listen(port, () => {

@@ -14,6 +14,7 @@ const telX = document.getElementById('tel-x');
 const telY = document.getElementById('tel-y');
 const telR = document.getElementById('tel-r');
 const telD = document.getElementById('tel-d');
+const telA = document.getElementById('tel-a');
 
 // --- Physics State & Variables ---
 const state = {
@@ -23,6 +24,7 @@ const state = {
   vy: 0,         // Velocity Y
   rotation: 0,   // Angle in degrees (0 - 360)
   vRotation: 0,  // Rotational velocity (deg/frame)
+  action: 4,     // Action mode state code (default: 4)
 };
 
 const settings = {
@@ -55,7 +57,89 @@ let transmitIntervalId = null;
 let connectionState = 'disconnected'; // 'disconnected', 'connecting', 'connected'
 
 // Track last sent state to only send when values change
-let lastTransmittedState = { x: null, y: null, rotation: null };
+let lastTransmittedState = { x: null, y: null, rotation: null, action: null };
+
+// --- Action Pattern Classifier State ---
+const actionTracker = {
+  borderMoveStartTime: null,
+  accumulatedTurnAngle: 0,
+  lastHeadingAngle: null,
+  lastTurnSign: 0,
+};
+
+function determineActionCode() {
+  const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
+  const distToTop = Math.hypot(state.x - 2500, state.y - 5000);
+  const linearSpeed = Math.hypot(state.vx, state.vy);
+  const rotSpeed = Math.abs(state.vRotation);
+  const now = Date.now();
+
+  // Mode 7: (2500, 5000)에 근접했을 때 (within 400 units of top point)
+  if (distToTop <= 400) {
+    return 7;
+  }
+
+  // Mode 6: 원 보더 방향으로 1.5초 이상 이동 (이때 원 보더와 가까운 위치에 있어야함)
+  const isNearBorder = distFromCenter >= 1900;
+  const nx = distFromCenter > 0 ? (state.x - 2500) / distFromCenter : 0;
+  const ny = distFromCenter > 0 ? (state.y - 2500) / distFromCenter : 0;
+  const outwardVel = state.vx * nx + state.vy * ny;
+
+  const isMovingTowardBorder = isNearBorder && (
+    outwardVel > 0.5 ||
+    (distFromCenter >= 2400 && (keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight))
+  );
+
+  if (isMovingTowardBorder) {
+    if (!actionTracker.borderMoveStartTime) {
+      actionTracker.borderMoveStartTime = now;
+    }
+    if (now - actionTracker.borderMoveStartTime >= 1500) {
+      return 6;
+    }
+  } else {
+    actionTracker.borderMoveStartTime = null;
+  }
+
+  // Mode 3: 제자리에서 빙빙 (Spinning in place)
+  const isSpinningKeys = keys.q || keys.Q || keys.e || keys.E || rotSpeed > 0.6;
+  if (isSpinningKeys && linearSpeed < 3.5) {
+    return 3;
+  }
+
+  // Mode 2: 원을 그리며 이동 (원의 기준은 1.2바퀴 = 432도 이상)
+  if (linearSpeed > 2.0 && (rotSpeed > 0.3 || (keys.ArrowUp || keys.ArrowDown) && (keys.ArrowLeft || keys.ArrowRight || keys.q || keys.e))) {
+    const currentHeading = Math.atan2(state.vy, state.vx) * (180 / Math.PI);
+    if (actionTracker.lastHeadingAngle !== null) {
+      let diff = currentHeading - actionTracker.lastHeadingAngle;
+      while (diff < -180) diff += 360;
+      while (diff > 180) diff -= 360;
+
+      const currentTurnSign = Math.sign(diff);
+      if (Math.abs(diff) > 0.2 && Math.abs(diff) < 45) {
+        if (actionTracker.lastTurnSign === 0 || actionTracker.lastTurnSign === currentTurnSign) {
+          actionTracker.accumulatedTurnAngle += Math.abs(diff);
+          actionTracker.lastTurnSign = currentTurnSign;
+        } else {
+          actionTracker.accumulatedTurnAngle = Math.abs(diff);
+          actionTracker.lastTurnSign = currentTurnSign;
+        }
+      }
+    }
+    actionTracker.lastHeadingAngle = currentHeading;
+
+    if (actionTracker.accumulatedTurnAngle >= 432) {
+      return 2;
+    }
+  } else {
+    actionTracker.accumulatedTurnAngle = Math.max(0, actionTracker.accumulatedTurnAngle - 8);
+    actionTracker.lastHeadingAngle = null;
+    actionTracker.lastTurnSign = 0;
+  }
+
+  // Mode 4: 기본
+  return 4;
+}
 
 // --- Initialize Event Listeners ---
 window.addEventListener('keydown', (e) => {
@@ -123,12 +207,14 @@ function transmitState() {
   const currentX = parseFloat(state.x.toFixed(2));
   const currentY = parseFloat(state.y.toFixed(2));
   const currentRotation = Math.round(state.rotation);
+  const currentAction = state.action || 4;
 
   // Skip sending if values haven't changed
   if (
     currentX === lastTransmittedState.x &&
     currentY === lastTransmittedState.y &&
-    currentRotation === lastTransmittedState.rotation
+    currentRotation === lastTransmittedState.rotation &&
+    currentAction === lastTransmittedState.action
   ) {
     return;
   }
@@ -137,13 +223,15 @@ function transmitState() {
   lastTransmittedState = {
     x: currentX,
     y: currentY,
-    rotation: currentRotation
+    rotation: currentRotation,
+    action: currentAction
   };
 
   const payload = {
     x: currentX,
     y: currentY,
     rotation: currentRotation,
+    action: currentAction,
     timestamp: Date.now()
   };
 
@@ -166,7 +254,7 @@ function transmitState() {
 }
 
 function logTransmission(payload, statusText) {
-  const msg = `>> tx_data(x=${payload.x.toFixed(1).padStart(5, ' ')}, y=${payload.y.toFixed(1).padStart(5, ' ')}, theta=${String(payload.rotation).padStart(3, ' ')}°) [${statusText}]`;
+  const msg = `>> tx_data(x=${payload.x.toFixed(1).padStart(5, ' ')}, y=${payload.y.toFixed(1).padStart(5, ' ')}, theta=${String(payload.rotation).padStart(3, ' ')}°, action=${payload.action}) [${statusText}]`;
   
   const line = document.createElement('div');
   line.className = 'log-line send-log';
@@ -298,12 +386,26 @@ function updatePhysics() {
   // Update angle (keep within 0-360)
   state.rotation = (state.rotation + state.vRotation + 360) % 360;
 
+  // Determine active action pattern code
+  state.action = determineActionCode();
+
   // 5. Update Telemetry UI
   const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
   telX.textContent = state.x.toFixed(1);
   telY.textContent = state.y.toFixed(1);
   telR.textContent = `${Math.round(state.rotation)}°`;
   if (telD) telD.textContent = distFromCenter.toFixed(1);
+
+  if (telA) {
+    const actionLabels = {
+      2: '2 (Circling >= 1.2 turns)',
+      3: '3 (Spinning in Place)',
+      4: '4 (Default)',
+      6: '6 (Border Push >= 1.5s)',
+      7: '7 (Near Top 2500, 5000)',
+    };
+    telA.textContent = actionLabels[state.action] || `${state.action}`;
+  }
 }
 
 function render() {

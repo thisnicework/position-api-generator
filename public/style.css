@@ -281,6 +281,16 @@ body {
   color: #000000;
 }
 
+.tel-action-item {
+  grid-column: span 2;
+  background: #f4f8fb;
+  border: 1px solid #cce0f0;
+}
+
+.tel-action-item .tel-value {
+  color: var(--accent-cyan);
+}
+
 /* Keyboard Guide Custom Keys */
 .keyboard-guide {
   display: flex;
