@@ -13,6 +13,7 @@ const terminalBody = document.getElementById('terminal-body');
 const telX = document.getElementById('tel-x');
 const telY = document.getElementById('tel-y');
 const telR = document.getElementById('tel-r');
+const telD = document.getElementById('tel-d');
 
 // --- Physics State & Variables ---
 const state = {
@@ -202,6 +203,7 @@ resizeCanvas();
 telX.textContent = '2500.0';
 telY.textContent = '2500.0';
 telR.textContent = '0°';
+if (telD) telD.textContent = '0.0';
 
 // --- Main Loop: Physics & Rendering (60fps) ---
 function mainLoop() {
@@ -211,14 +213,37 @@ function mainLoop() {
 }
 
 function updatePhysics() {
+  const centerX = 2500;
+  const centerY = 2500;
+  const maxRadius = 2440; // Clamped slightly inside 2500 so marker icon remains fully inside the circle
+
+  const currDx = state.x - centerX;
+  const currDy = state.y - centerY;
+  const currDist = Math.hypot(currDx, currDy);
+
   // 1. Position Input Forces
   let ax = 0;
   let ay = 0;
   
-  if (keys.ArrowUp) ay += settings.acceleration;  // Up increases Y (closer to 800)
-  if (keys.ArrowDown) ay -= settings.acceleration; // Down decreases Y (closer to 0)
-  if (keys.ArrowLeft) ax -= settings.acceleration; // Left decreases X (closer to 0)
-  if (keys.ArrowRight) ax += settings.acceleration; // Right increases X (closer to 800)
+  if (keys.ArrowUp) ay += settings.acceleration;  // Up increases Y
+  if (keys.ArrowDown) ay -= settings.acceleration; // Down decreases Y
+  if (keys.ArrowLeft) ax -= settings.acceleration; // Left decreases X
+  if (keys.ArrowRight) ax += settings.acceleration; // Right increases X
+
+  // If currently at or beyond boundary, check if input force/velocity moves outward or along wall
+  if (currDist >= maxRadius) {
+    const nextVx = (state.vx + ax) * settings.friction;
+    const nextVy = (state.vy + ay) * settings.friction;
+    const nextDist = Math.hypot((state.x + nextVx) - centerX, (state.y + nextVy) - centerY);
+
+    // If movement pushes outward or along the boundary wall (distance does not decrease), block it!
+    if (nextDist >= currDist) {
+      ax = 0;
+      ay = 0;
+      state.vx = 0;
+      state.vy = 0;
+    }
+  }
 
   state.vx += ax;
   state.vy += ay;
@@ -256,41 +281,45 @@ function updatePhysics() {
 
   // 4. Update coordinates
   state.x += state.vx;
-  // Keep in mind canvas Y goes down, but we want Y pointing UP in telemetry.
-  // We simulate positions inside our defined canvas coordinate range
   state.y += state.vy; 
 
-  // Constrain coordinates to range boundary [0, 800]
-  const xLimit = settings.canvasRangeX;
-  const yLimit = settings.canvasRangeY;
-  
-  if (state.x > xLimit) { state.x = xLimit; state.vx = 0; }
-  if (state.x < 0) { state.x = 0; state.vx = 0; }
-  if (state.y > yLimit) { state.y = yLimit; state.vy = 0; }
-  if (state.y < 0) { state.y = 0; state.vy = 0; }
+  // Constrain coordinates to circular map boundary centered at (2500, 2500)
+  const dx = state.x - centerX;
+  const dy = state.y - centerY;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist > maxRadius) {
+    state.x = centerX + (dx / dist) * maxRadius;
+    state.y = centerY + (dy / dist) * maxRadius;
+    state.vx = 0;
+    state.vy = 0;
+  }
 
   // Update angle (keep within 0-360)
   state.rotation = (state.rotation + state.vRotation + 360) % 360;
 
   // 5. Update Telemetry UI
+  const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
   telX.textContent = state.x.toFixed(1);
   telY.textContent = state.y.toFixed(1);
   telR.textContent = `${Math.round(state.rotation)}°`;
+  if (telD) telD.textContent = distFromCenter.toFixed(1);
 }
 
 function render() {
   const width = canvas.width;
   const height = canvas.height;
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const mapRadius = width / 2;
 
-  // Clear Canvas (MATLAB White Background)
-  ctx.fillStyle = '#ffffff';
+  // 1. Draw Outer Square Frame Background & Grid
+  ctx.fillStyle = '#f8f9fa';
   ctx.fillRect(0, 0, width, height);
 
-  // Draw Grid Lines (MATLAB Style matching 0..5000 coordinates)
-  ctx.strokeStyle = '#e9e9e9';
+  // Outer Grid Lines (Square Coordinate System 0..5000)
+  ctx.strokeStyle = '#e6e6e6';
   ctx.lineWidth = 1;
-  
-  // Draw vertical grid lines at 1000, 2000, 3000, 4000
   for (let gx = 1000; gx < 5000; gx += 1000) {
     const x = (gx / 5000) * width;
     ctx.beginPath();
@@ -298,7 +327,6 @@ function render() {
     ctx.lineTo(x, height);
     ctx.stroke();
   }
-  // Draw horizontal grid lines at 1000, 2000, 3000, 4000
   for (let gy = 1000; gy < 5000; gy += 1000) {
     const y = (gy / 5000) * height;
     ctx.beginPath();
@@ -307,36 +335,103 @@ function render() {
     ctx.stroke();
   }
 
-  // Draw Origin Distance Reference Circles (MATLAB Dotted Polar Grid, centered at 0, height - bottom-left)
-  ctx.strokeStyle = '#c7c7c7';
-  ctx.lineWidth = 0.8;
-  ctx.setLineDash([2, 4]); // Dotted circles
-  for (let r = 1000; r < 7000; r += 1000) {
-    const radius = (r / 5000) * width;
-    ctx.beginPath();
-    ctx.arc(0, height, radius, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.setLineDash([]); // Reset dash
-
-  // MATLAB Outer Axes Border (box on style)
-  ctx.strokeStyle = '#a5a5a5';
+  // Outer Square Boundary Box (Borders wrapping the circle)
+  ctx.strokeStyle = '#a0a0a0';
   ctx.lineWidth = 2.0;
   ctx.strokeRect(0, 0, width, height);
 
-  // Translate coordinates from state [0..800] to screen pixels (Y is inverted: 0 is bottom, height is top)
+  // 2. Draw Inscribed Circular Map Area
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, mapRadius, 0, Math.PI * 2);
+  ctx.clip();
+
+  // Circular Map White Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  // Inner Circular Grid Lines
+  ctx.strokeStyle = '#eeeeee';
+  ctx.lineWidth = 1;
+  for (let gx = 1000; gx < 5000; gx += 1000) {
+    const x = (gx / 5000) * width;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+  for (let gy = 1000; gy < 5000; gy += 1000) {
+    const y = (gy / 5000) * height;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  // Draw Center-Based Distance Reference Circles (Dotted Polar Grid centered at screen center 2500, 2500)
+  ctx.strokeStyle = '#c7c7c7';
+  ctx.lineWidth = 0.8;
+  ctx.setLineDash([2, 4]); // Dotted circles
+  ctx.fillStyle = '#888888';
+  ctx.font = '10px "Fira Code", monospace';
+  
+  for (let r = 500; r <= 2500; r += 500) {
+    const radius = (r / 5000) * width;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Draw distance level text label on each circle
+    if (r < 2500) {
+      ctx.fillText(`${r}`, centerX + 4, centerY - radius + 11);
+    }
+  }
+  ctx.setLineDash([]); // Reset dash
+
+  // Draw Center Crosshair / Point (2500, 2500)
+  ctx.strokeStyle = 'rgba(0, 114, 189, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(centerX - 6, centerY);
+  ctx.lineTo(centerX + 6, centerY);
+  ctx.moveTo(centerX, centerY - 6);
+  ctx.lineTo(centerX, centerY + 6);
+  ctx.stroke();
+  ctx.fillStyle = '#0072bd';
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Inscribed Circular Map Outer Ring Border
+  ctx.strokeStyle = '#0072bd'; // Accent Blue Ring
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, mapRadius - 0.75, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Translate coordinates from state [0..5000] to screen pixels (Y is inverted: 0 is bottom, height is top)
   const screenX = (state.x / settings.canvasRangeX) * width;
   const screenY = height - (state.y / settings.canvasRangeY) * height;
 
-  // Draw target dot connection line to origin (0, height) (MATLAB Orange dashed line)
-  ctx.strokeStyle = 'rgba(217, 83, 25, 0.6)'; // MATLAB Orange
+  // Draw target dot connection line from SCREEN CENTER (centerX, centerY) (MATLAB Orange dashed line)
+  ctx.strokeStyle = 'rgba(217, 83, 25, 0.75)'; // MATLAB Orange
   ctx.lineWidth = 1.5;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
-  ctx.moveTo(0, height);
+  ctx.moveTo(centerX, centerY);
   ctx.lineTo(screenX, screenY);
   ctx.stroke();
   ctx.setLineDash([]); // Reset dash
+
+  // Draw distance label on the midpoint of the line if target is not at center
+  const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
+  if (distFromCenter > 80) {
+    const midX = (centerX + screenX) / 2;
+    const midY = (centerY + screenY) / 2;
+    ctx.fillStyle = '#d95319';
+    ctx.font = '500 10px "Fira Code", monospace';
+    ctx.fillText(`d=${distFromCenter.toFixed(0)}`, midX + 6, midY - 4);
+  }
 
   // Save context for dot drawing
   ctx.save();
@@ -381,6 +476,9 @@ function render() {
     screenX + 22,
     screenY + 4
   );
+
+  // Restore clip context
+  ctx.restore();
 }
 
 // Start everything

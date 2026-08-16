@@ -330,7 +330,7 @@ body {
   align-items: center; /* Center-aligns the square map */
 }
 
-/* Canvas Wrapper - SQUARE MAP */
+/* Canvas Wrapper - SQUARE FRAME WRAPPING CIRCULAR MAP */
 .canvas-wrapper {
   position: relative;
   width: calc(100vh - 210px);
@@ -338,17 +338,18 @@ body {
   max-width: 100%;
   max-height: 100%;
   aspect-ratio: 1 / 1;
-  background: #ffffff;
-  border: 1px solid var(--border-color);
+  background: #f8f9fa;
+  border: 1.5px solid var(--border-color);
   border-radius: 4px;
   overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
 #control-canvas {
   display: block;
   width: 100%;
   height: 100%;
+  border-radius: 0;
 }
 
 .canvas-overlay {
@@ -358,20 +359,24 @@ body {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Fira Code', monospace;
   font-size: 11px;
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.4);
+  font-weight: 500;
+  color: #444444;
 }
 
 .coordinate-marker {
   position: absolute;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.label-top-left { top: 8px; left: 8px; }
-.label-top-right { top: 8px; right: 8px; }
-.label-bottom-left { bottom: 8px; left: 8px; }
-.label-bottom-right { bottom: 8px; right: 8px; }
+.label-top-left { top: 6px; left: 8px; }
+.label-top-right { top: 6px; right: 8px; }
+.label-bottom-left { bottom: 6px; left: 8px; }
+.label-bottom-right { bottom: 6px; right: 8px; }
 
 /* Terminal Logging Panel (MATLAB Command Window style) */
 .terminal-panel {
