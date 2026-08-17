@@ -62,10 +62,65 @@ let lastTransmittedState = { x: null, y: null, rotation: null, action: null };
 // --- Action Pattern Classifier State ---
 const actionTracker = {
   borderMoveStartTime: null,
-  accumulatedTurnAngle: 0,
-  lastHeadingAngle: null,
-  lastTurnSign: 0,
+  trajectoryHistory: [], // Array of { x, y, time } for Closed Shape (닫힌 도형) loop detection
+  closedShapeUntil: 0,   // Hysteresis timestamp for smooth active state
 };
+
+function updateTrajectory(now) {
+  const history = actionTracker.trajectoryHistory;
+  const last = history[history.length - 1];
+  
+  // Record position point if moved at least 6 units from last recorded point
+  if (!last || Math.hypot(state.x - last.x, state.y - last.y) >= 6) {
+    history.push({ x: state.x, y: state.y, time: now });
+  }
+
+  // Keep trajectory history for past 6 seconds
+  const cutoff = now - 6000;
+  while (history.length > 0 && history[0].time < cutoff) {
+    history.shift();
+  }
+}
+
+function checkClosedShape(now) {
+  const history = actionTracker.trajectoryHistory;
+  if (history.length < 10) return false;
+
+  const current = { x: state.x, y: state.y };
+  let pathLength = 0;
+  let minX = current.x, maxX = current.x, minY = current.y, maxY = current.y;
+
+  // Search backward in trajectory history for loop closure (닫힌 루프)
+  for (let i = history.length - 2; i >= 0; i--) {
+    const pt = history[i];
+    const prevPt = history[i + 1];
+    const stepDist = Math.hypot(prevPt.x - pt.x, prevPt.y - pt.y);
+    pathLength += stepDist;
+
+    minX = Math.min(minX, pt.x);
+    maxX = Math.max(maxX, pt.x);
+    minY = Math.min(minY, pt.y);
+    maxY = Math.max(maxY, pt.y);
+
+    const timeDiff = now - pt.time;
+    // Check points visited at least 1.2 seconds ago
+    if (timeDiff >= 1200) {
+      const distanceToCurrent = Math.hypot(current.x - pt.x, current.y - pt.y);
+      const bboxWidth = maxX - minX;
+      const bboxHeight = maxY - minY;
+
+      // Closed Shape (닫힌 도형) Loop Closure Criteria:
+      // 1. Current position returns near a previously visited point (distance <= 480)
+      // 2. Traveled path length along trajectory between them is at least 1200 units
+      // 3. 2D Bounding box of the shape has width and height >= 250 (ensures 2D enclosed shape, not 1D line)
+      if (distanceToCurrent <= 480 && pathLength >= 1200 && bboxWidth >= 250 && bboxHeight >= 250) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 
 function determineActionCode() {
   const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
@@ -74,12 +129,15 @@ function determineActionCode() {
   const rotSpeed = Math.abs(state.vRotation);
   const now = Date.now();
 
-  // Mode 6 (was 7): (2500, 5000)에 근접했을 때 (within 400 units of top point)
+  // Update trajectory points
+  updateTrajectory(now);
+
+  // Mode 6: (2500, 5000)에 근접했을 때 (within 400 units of top point)
   if (distToTop <= 400) {
     return 6;
   }
 
-  // Mode 5 (was 6): 원 보더 방향으로 1.5초 이상 이동 (이때 원 보더와 가까운 위치에 있어야함)
+  // Mode 5: 원 보더 방향으로 1.5초 이상 이동 (이때 원 보더와 가까운 위치에 있어야함)
   const isNearBorder = distFromCenter >= 1900;
   const nx = distFromCenter > 0 ? (state.x - 2500) / distFromCenter : 0;
   const ny = distFromCenter > 0 ? (state.y - 2500) / distFromCenter : 0;
@@ -101,43 +159,22 @@ function determineActionCode() {
     actionTracker.borderMoveStartTime = null;
   }
 
-  // Mode 2 (was 3): 제자리에서 빙빙 (Spinning in place)
+  // Mode 2: 제자리에서 빙빙 (Spinning in place)
   const isSpinningKeys = keys.q || keys.Q || keys.e || keys.E || rotSpeed > 0.6;
   if (isSpinningKeys && linearSpeed < 3.5) {
     return 2;
   }
 
-  // Mode 1 (was 2): 원을 그리며 이동 (원의 기준은 1.2바퀴 = 432도 이상)
-  if (linearSpeed > 2.0 && (rotSpeed > 0.3 || (keys.ArrowUp || keys.ArrowDown) && (keys.ArrowLeft || keys.ArrowRight || keys.q || keys.e))) {
-    const currentHeading = Math.atan2(state.vy, state.vx) * (180 / Math.PI);
-    if (actionTracker.lastHeadingAngle !== null) {
-      let diff = currentHeading - actionTracker.lastHeadingAngle;
-      while (diff < -180) diff += 360;
-      while (diff > 180) diff -= 360;
-
-      const currentTurnSign = Math.sign(diff);
-      if (Math.abs(diff) > 0.2 && Math.abs(diff) < 45) {
-        if (actionTracker.lastTurnSign === 0 || actionTracker.lastTurnSign === currentTurnSign) {
-          actionTracker.accumulatedTurnAngle += Math.abs(diff);
-          actionTracker.lastTurnSign = currentTurnSign;
-        } else {
-          actionTracker.accumulatedTurnAngle = Math.abs(diff);
-          actionTracker.lastTurnSign = currentTurnSign;
-        }
-      }
-    }
-    actionTracker.lastHeadingAngle = currentHeading;
-
-    if (actionTracker.accumulatedTurnAngle >= 432) {
-      return 1;
-    }
-  } else {
-    actionTracker.accumulatedTurnAngle = Math.max(0, actionTracker.accumulatedTurnAngle - 8);
-    actionTracker.lastHeadingAngle = null;
-    actionTracker.lastTurnSign = 0;
+  // Mode 1: 닫힌 도형/원 이동 (Closed Shape Loop Detection)
+  const isClosedShapeNow = checkClosedShape(now);
+  if (isClosedShapeNow) {
+    actionTracker.closedShapeUntil = now + 1500; // Keep Mode 1 active for 1.5s after loop completion
+  }
+  if (now < actionTracker.closedShapeUntil) {
+    return 1;
   }
 
-  // Mode 3 (was 4): 기본
+  // Mode 3: 기본
   return 3;
 }
 
