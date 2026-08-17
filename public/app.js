@@ -75,8 +75,8 @@ function updateTrajectory(now) {
     history.push({ x: state.x, y: state.y, time: now });
   }
 
-  // Keep trajectory history for past 6 seconds
-  const cutoff = now - 6000;
+  // Keep trajectory history strictly within past 5 seconds (5000 ms)
+  const cutoff = now - 5000;
   while (history.length > 0 && history[0].time < cutoff) {
     history.shift();
   }
@@ -90,7 +90,7 @@ function checkClosedShape(now) {
   let pathLength = 0;
   let minX = current.x, maxX = current.x, minY = current.y, maxY = current.y;
 
-  // Search backward in trajectory history for loop closure (닫힌 루프)
+  // Search backward in past 5 seconds trajectory history for loop closure (닫힌 루프)
   for (let i = history.length - 2; i >= 0; i--) {
     const pt = history[i];
     const prevPt = history[i + 1];
@@ -103,17 +103,17 @@ function checkClosedShape(now) {
     maxY = Math.max(maxY, pt.y);
 
     const timeDiff = now - pt.time;
-    // Check points visited at least 1.2 seconds ago
-    if (timeDiff >= 1200) {
+    // Strictly evaluate points visited within the past 5 seconds (1.0s <= timeDiff <= 5.0s)
+    if (timeDiff >= 1000 && timeDiff <= 5000) {
       const distanceToCurrent = Math.hypot(current.x - pt.x, current.y - pt.y);
       const bboxWidth = maxX - minX;
       const bboxHeight = maxY - minY;
 
-      // Closed Shape (닫힌 도형) Loop Closure Criteria:
-      // 1. Current position returns near a previously visited point (distance <= 480)
-      // 2. Traveled path length along trajectory between them is at least 1200 units
-      // 3. 2D Bounding box of the shape has width and height >= 250 (ensures 2D enclosed shape, not 1D line)
-      if (distanceToCurrent <= 480 && pathLength >= 1200 && bboxWidth >= 250 && bboxHeight >= 250) {
+      // Closed Shape (닫힌 도형) Loop Closure Criteria (Past 5s):
+      // 1. Current position returns near a point visited within the past 5 seconds (distance <= 480)
+      // 2. Traveled path length along trajectory between them is at least 1100 units
+      // 3. 2D Bounding box of the shape has width and height >= 240 (ensures 2D enclosed shape)
+      if (distanceToCurrent <= 480 && pathLength >= 1100 && bboxWidth >= 240 && bboxHeight >= 240) {
         return true;
       }
     }
