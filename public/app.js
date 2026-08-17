@@ -137,26 +137,33 @@ function determineActionCode() {
     return 6;
   }
 
-  // Mode 5: 원 보더 방향으로 1.5초 이상 이동 (이때 원 보더와 가까운 위치에 있어야함)
-  const isNearBorder = distFromCenter >= 1900;
+  // Mode 5: 원 보더 방향 이동 (후한 판정 조건: 반경 >= 1400, 지속 시간 >= 800ms)
+  const isNearBorder = distFromCenter >= 1400;
   const nx = distFromCenter > 0 ? (state.x - 2500) / distFromCenter : 0;
   const ny = distFromCenter > 0 ? (state.y - 2500) / distFromCenter : 0;
   const outwardVel = state.vx * nx + state.vy * ny;
 
   const isMovingTowardBorder = isNearBorder && (
-    outwardVel > 0.5 ||
-    (distFromCenter >= 2400 && (keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight))
+    outwardVel > 0.05 ||
+    distFromCenter >= 2100 ||
+    (keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight)
   );
 
   if (isMovingTowardBorder) {
+    actionTracker.lastBorderPauseTime = null;
     if (!actionTracker.borderMoveStartTime) {
       actionTracker.borderMoveStartTime = now;
     }
-    if (now - actionTracker.borderMoveStartTime >= 1500) {
+    if (now - actionTracker.borderMoveStartTime >= 800) {
       return 5;
     }
   } else {
-    actionTracker.borderMoveStartTime = null;
+    if (!actionTracker.lastBorderPauseTime) {
+      actionTracker.lastBorderPauseTime = now;
+    } else if (now - actionTracker.lastBorderPauseTime > 300) {
+      actionTracker.borderMoveStartTime = null;
+      actionTracker.lastBorderPauseTime = null;
+    }
   }
 
   // Mode 2: 제자리에서 빙빙 (Spinning in place)
