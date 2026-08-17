@@ -527,6 +527,57 @@ function render() {
   }
   ctx.setLineDash([]); // Reset dash
 
+  // Translate coordinates from state [0..5000] to screen pixels
+  const screenX = (state.x / settings.canvasRangeX) * width;
+  const screenY = height - (state.y / settings.canvasRangeY) * height;
+
+  // Draw Past 5 Seconds Trajectory Trail on HUD Canvas
+  const history = actionTracker.trajectoryHistory;
+  const now = Date.now();
+  if (history.length > 1) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    for (let i = 0; i < history.length - 1; i++) {
+      const pt1 = history[i];
+      const pt2 = history[i + 1];
+
+      const age1 = now - pt1.time;
+      if (age1 > 5000) continue;
+
+      const ageRatio = Math.max(0, Math.min(1, 1 - age1 / 5000));
+      const alpha = 0.08 + ageRatio * 0.67;
+
+      const x1 = (pt1.x / settings.canvasRangeX) * width;
+      const y1 = height - (pt1.y / settings.canvasRangeY) * height;
+      const x2 = (pt2.x / settings.canvasRangeX) * width;
+      const y2 = height - (pt2.y / settings.canvasRangeY) * height;
+
+      ctx.strokeStyle = `rgba(0, 114, 189, ${alpha.toFixed(2)})`;
+      ctx.lineWidth = 1.2 + ageRatio * 1.8;
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    // Connect last history point to current dot position
+    const lastPt = history[history.length - 1];
+    const lx = (lastPt.x / settings.canvasRangeX) * width;
+    const ly = height - (lastPt.y / settings.canvasRangeY) * height;
+
+    ctx.strokeStyle = 'rgba(0, 114, 189, 0.75)';
+    ctx.lineWidth = 3.0;
+    ctx.beginPath();
+    ctx.moveTo(lx, ly);
+    ctx.lineTo(screenX, screenY);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
   // Draw Center Crosshair / Point (2500, 2500)
   ctx.strokeStyle = 'rgba(0, 114, 189, 0.5)';
   ctx.lineWidth = 1;
@@ -547,10 +598,6 @@ function render() {
   ctx.beginPath();
   ctx.arc(centerX, centerY, mapRadius - 0.75, 0, Math.PI * 2);
   ctx.stroke();
-
-  // Translate coordinates from state [0..5000] to screen pixels (Y is inverted: 0 is bottom, height is top)
-  const screenX = (state.x / settings.canvasRangeX) * width;
-  const screenY = height - (state.y / settings.canvasRangeY) * height;
 
   // Draw target dot connection line from SCREEN CENTER (centerX, centerY) (MATLAB Orange dashed line)
   ctx.strokeStyle = 'rgba(217, 83, 25, 0.75)'; // MATLAB Orange
