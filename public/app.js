@@ -549,6 +549,24 @@ if (joystickSpeedSlider && speedSliderValSpan) {
   });
 }
 
+const joystickDeadzoneSlider = document.getElementById('joystick-deadzone-slider');
+const deadzoneSliderValSpan = document.getElementById('deadzone-slider-val');
+
+if (joystickDeadzoneSlider && deadzoneSliderValSpan) {
+  joystickDeadzoneSlider.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value, 10) || 8;
+    deadzoneSliderValSpan.textContent = `${val}%`;
+  });
+}
+
+// Smooth Joystick Deadzone Filter with linear re-scaling (0..1)
+function applyDeadzone(val, dz) {
+  if (Math.abs(val) <= dz) return 0;
+  const sign = Math.sign(val);
+  return sign * ((Math.abs(val) - dz) / (1.0 - dz));
+}
+
+
 
 
 clearTerminalBtn.addEventListener('click', () => {
@@ -760,11 +778,14 @@ function processIncomingSerialLine(line) {
     normY = Math.max(-1.0, Math.min(1.0, normY));
     normRot = Math.max(-1.0, Math.min(1.0, normRot));
 
-    // --- Step 4: Deadzone (kills residual micro-noise after smoothing) ---
-    const DEADZONE = 0.04;
-    if (Math.abs(normX) < DEADZONE) normX = 0;
-    if (Math.abs(normY) < DEADZONE) normY = 0;
-    if (Math.abs(normRot) < DEADZONE) normRot = 0;
+    // --- Step 4: Smooth Radial/Axial Deadzone Filter with linear re-scaling ---
+    const dzPercent = joystickDeadzoneSlider ? (parseInt(joystickDeadzoneSlider.value, 10) || 8) : 8;
+    const DEADZONE = dzPercent / 100.0;
+
+    normX = applyDeadzone(normX, DEADZONE);
+    normY = applyDeadzone(normY, DEADZONE);
+    normRot = applyDeadzone(normRot, DEADZONE);
+
 
     // --- Step 5: LERP smoothing on velocity output (prevents any remaining spikes) ---
     const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 2.0) : 2.0;
