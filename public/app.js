@@ -1636,10 +1636,9 @@ function render() {
     ctx.fillText(`d=${distFromCenter.toFixed(0)}`, midX + 6, midY - 4);
   }
 
-  // Update macOS pinwheel spin angle and continuous rainbow trail afterimage
-  pinwheelSpinAngle = (pinwheelSpinAngle + 5) % 360;
   const nowTime = Date.now();
   const currentHue = ((state.rotation % 360) + 360) % 360;
+
 
   // Sub-pixel continuous trail recording (no gaps when moving fast!)
   const lastTrailPt = rainbowTrails[rainbowTrails.length - 1];
@@ -1708,10 +1707,11 @@ function render() {
   }
 
 
-  // Render macOS Spinning Rainbow Pinwheel Cursor at (screenX, screenY)
+  // Render macOS Rainbow Pinwheel Cursor at (screenX, screenY)
   ctx.save();
   ctx.translate(screenX, screenY);
-  ctx.rotate(((state.rotation + pinwheelSpinAngle) * Math.PI) / 180);
+  ctx.rotate((state.rotation * Math.PI) / 180);
+
 
   const pinwheelRadius = 18;
   const pinwheelColors = ['#FF3B30', '#FFCC00', '#34C759', '#32ADE6', '#007AFF', '#AF52DE'];
