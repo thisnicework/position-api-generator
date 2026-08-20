@@ -315,9 +315,17 @@ const keys = {
 
 
 // --- Networking State ---
-const currentOrigin = window.location.origin.includes('file://') ? 'http://localhost:5005' : window.location.origin;
-let apiEndpoint = `${currentOrigin}/api/state`;
+function getDefaultEndpoint() {
+  const origin = window.location.origin;
+  if (!origin || origin.includes('file://') || (window.location.port && window.location.port !== '5005')) {
+    return 'http://localhost:5005/api/state';
+  }
+  return `${origin}/api/state`;
+}
+
+let apiEndpoint = getDefaultEndpoint();
 let transmitInterval = 200; // ms
+
 let transmitIntervalId = null;
 let connectionState = 'disconnected'; // 'disconnected', 'connecting', 'connected'
 
@@ -1744,7 +1752,7 @@ function render() {
 
 // Start everything
 initWebGLShader();
-const defaultServer = (window.location.protocol === 'file:') ? 'http://localhost:5005/api/state' : `${window.location.origin}/api/state`;
+const defaultServer = getDefaultEndpoint();
 if (addressInput) addressInput.value = defaultServer;
 apiEndpoint = defaultServer;
 
@@ -1752,5 +1760,6 @@ resizeCanvas();
 requestAnimationFrame(mainLoop);
 setupConnection();
 logTerminal('success', 'WebGL Shader Screensaver Engine started.');
+
 
 
