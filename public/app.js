@@ -1526,10 +1526,6 @@ function render() {
   ctx.setLineDash([]); // Reset dash
 
 
-  // Translate coordinates from state [0..5000] to screen pixels
-  const screenX = (state.x / settings.canvasRangeX) * width;
-  const screenY = height - (state.y / settings.canvasRangeY) * height;
-
   // Draw Past 5 Seconds Trajectory Trail on HUD Canvas
   const history = actionTracker.trajectoryHistory;
   const now = Date.now();
@@ -1553,7 +1549,7 @@ function render() {
       const x2 = (pt2.x / settings.canvasRangeX) * width;
       const y2 = height - (pt2.y / settings.canvasRangeY) * height;
 
-      ctx.strokeStyle = `rgba(0, 114, 189, ${alpha.toFixed(2)})`;
+      ctx.strokeStyle = `rgba(56, 189, 248, ${alpha.toFixed(2)})`;
       ctx.lineWidth = 1.2 + ageRatio * 1.8;
 
       ctx.beginPath();
@@ -1567,7 +1563,7 @@ function render() {
     const lx = (lastPt.x / settings.canvasRangeX) * width;
     const ly = height - (lastPt.y / settings.canvasRangeY) * height;
 
-    ctx.strokeStyle = 'rgba(0, 114, 189, 0.75)';
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.75)';
     ctx.lineWidth = 3.0;
     ctx.beginPath();
     ctx.moveTo(lx, ly);
@@ -1578,7 +1574,7 @@ function render() {
   }
 
   // Draw Center Crosshair / Point (2500, 2500)
-  ctx.strokeStyle = 'rgba(0, 114, 189, 0.5)';
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(centerX - 6, centerY);
@@ -1586,34 +1582,27 @@ function render() {
   ctx.moveTo(centerX, centerY - 6);
   ctx.lineTo(centerX, centerY + 6);
   ctx.stroke();
-  ctx.fillStyle = '#0072bd';
+  ctx.fillStyle = '#38bdf8';
   ctx.beginPath();
   ctx.arc(centerX, centerY, 2.5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Inscribed Circular Map Outer Ring Border
-  ctx.strokeStyle = '#0072bd'; // Accent Blue Ring
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, mapRadius - 0.75, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Draw target dot connection line from SCREEN CENTER (centerX, centerY) (MATLAB Orange dashed line)
-  ctx.strokeStyle = 'rgba(217, 83, 25, 0.75)'; // MATLAB Orange
+  // Draw target dot connection line from SCREEN CENTER
+  ctx.strokeStyle = 'rgba(251, 146, 60, 0.5)';
   ctx.lineWidth = 1.5;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
   ctx.moveTo(centerX, centerY);
   ctx.lineTo(screenX, screenY);
   ctx.stroke();
-  ctx.setLineDash([]); // Reset dash
+  ctx.setLineDash([]);
 
   // Draw distance label on the midpoint of the line if target is not at center
   const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
   if (distFromCenter > 80) {
     const midX = (centerX + screenX) / 2;
     const midY = (centerY + screenY) / 2;
-    ctx.fillStyle = '#d95319';
+    ctx.fillStyle = '#fb923c';
     ctx.font = '500 10px "Fira Code", monospace';
     ctx.fillText(`d=${distFromCenter.toFixed(0)}`, midX + 6, midY - 4);
   }
@@ -1637,7 +1626,7 @@ function render() {
     rainbowTrails.shift();
   }
 
-  // 1. Render Rainbow Rotation Afterimage Trails (잔상 효과)
+  // Render Rainbow Rotation Afterimage Trails (잔상 효과)
   for (let i = 0; i < rainbowTrails.length; i++) {
     const tr = rainbowTrails[i];
     const age = nowTime - tr.time;
@@ -1649,20 +1638,17 @@ function render() {
     ctx.translate(tr.x, tr.y);
     ctx.rotate((tr.rotation * Math.PI) / 180);
 
-    // Glowing color aura
     ctx.fillStyle = `hsla(${tr.hue}, 100%, 60%, ${alpha * 0.35})`;
     ctx.beginPath();
     ctx.arc(0, 0, r + 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // Rainbow outer ring
     ctx.strokeStyle = `hsla(${tr.hue}, 100%, 50%, ${alpha})`;
     ctx.lineWidth = 2.5 * life;
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Center glowing core dot
     ctx.fillStyle = `hsla(${tr.hue}, 100%, 70%, ${alpha * 0.9})`;
     ctx.beginPath();
     ctx.arc(0, 0, 4 * life, 0, Math.PI * 2);
@@ -1671,7 +1657,7 @@ function render() {
     ctx.restore();
   }
 
-  // 2. Render macOS Spinning Rainbow Pinwheel Cursor at (screenX, screenY)
+  // Render macOS Spinning Rainbow Pinwheel Cursor at (screenX, screenY)
   ctx.save();
   ctx.translate(screenX, screenY);
   ctx.rotate(((state.rotation + pinwheelSpinAngle) * Math.PI) / 180);
@@ -1680,7 +1666,6 @@ function render() {
   const pinwheelColors = ['#FF3B30', '#FFCC00', '#34C759', '#32ADE6', '#007AFF', '#AF52DE'];
   const sectorAngle = (Math.PI * 2) / 6;
 
-  // 6 Conic Sectors (Red, Yellow, Green, Cyan, Blue, Magenta)
   for (let i = 0; i < 6; i++) {
     const startA = i * sectorAngle;
     const endA = startA + sectorAngle;
@@ -1692,7 +1677,6 @@ function render() {
     ctx.fill();
   }
 
-  // Metallic Rim & Glossy 3D Highlight Overlay
   const glossGrad = ctx.createLinearGradient(0, -pinwheelRadius, 0, pinwheelRadius);
   glossGrad.addColorStop(0, 'rgba(255, 255, 255, 0.45)');
   glossGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.05)');
@@ -1706,7 +1690,6 @@ function render() {
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // White Center Cap
   ctx.fillStyle = '#FFFFFF';
   ctx.beginPath();
   ctx.arc(0, 0, 5, 0, Math.PI * 2);
@@ -1715,8 +1698,7 @@ function render() {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Pointer Arrow on top of pinwheel (Orange Pointer)
-  ctx.fillStyle = '#d95319';
+  ctx.fillStyle = '#fb923c';
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -1729,19 +1711,16 @@ function render() {
 
   ctx.restore();
   
-  // Draw coordinate label near the dot (MATLAB label style)
-  ctx.fillStyle = '#333333';
+  // Draw coordinate label near the dot
+  ctx.fillStyle = 'rgba(248, 250, 252, 0.85)';
   ctx.font = '11px "Fira Code", monospace';
   ctx.fillText(
     `(${state.x.toFixed(0)}, ${state.y.toFixed(0)}, ${Math.round(state.rotation)}°)`,
     screenX + 24,
     screenY + 4
   );
-
-
-  // Restore clip context
-  ctx.restore();
 }
+
 
 // Start everything
 initWebGLShader();
