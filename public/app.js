@@ -33,10 +33,12 @@ const nodeDisconnectBtn = document.getElementById('node-disconnect-btn');
 
 const serialControlTypeSelect = document.getElementById('serial-control-type');
 const serialOrderSelect = document.getElementById('serial-order');
+const serialInvertXCheckbox = document.getElementById('serial-invert-x');
 const serialInvertYCheckbox = document.getElementById('serial-invert-y');
 const serialInvertRotCheckbox = document.getElementById('serial-invert-rot');
 const serialAnalogMapCheckbox = document.getElementById('serial-analog-map');
 const serialRawValSpan = document.getElementById('serial-raw-val');
+
 
 
 
@@ -408,6 +410,7 @@ function processIncomingSerialLine(line) {
     const centerY = calibYInput ? (parseFloat(calibYInput.value) || 179) : 179;
     const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 10) : 10;
 
+    const invertX = serialInvertXCheckbox ? serialInvertXCheckbox.checked : false;
     const invertY = serialInvertYCheckbox ? serialInvertYCheckbox.checked : false;
     const invertRot = serialInvertRotCheckbox ? serialInvertRotCheckbox.checked : false;
 
@@ -417,34 +420,17 @@ function processIncomingSerialLine(line) {
 
     // 1. Calculate X displacement relative to resting zero-point (-1.0 ~ +1.0)
     const diffX = parsed.x - centerX;
-    if (diffX > 0) {
-      normX = diffX / Math.max(1, (1023 - centerX));
-    } else {
-      normX = diffX / Math.max(1, centerX);
-    }
+    normX = diffX > 0 ? (diffX / Math.max(10, 1023 - centerX)) : (diffX / Math.max(10, centerX));
+    if (invertX) normX = -normX;
 
     // 2. Calculate Y displacement relative to resting zero-point (-1.0 ~ +1.0)
-    let diffY = parsed.y - centerY;
-    if (parsed.y >= 0 && parsed.y <= 360) {
-      diffY = getCircularDiff(parsed.y, centerY);
-      normY = diffY / 180.0;
-    } else {
-      if (diffY > 0) {
-        normY = diffY / Math.max(1, (1023 - centerY));
-      } else {
-        normY = diffY / Math.max(1, centerY);
-      }
-    }
+    const diffY = parsed.y - centerY;
+    normY = diffY > 0 ? (diffY / Math.max(10, 1023 - centerY)) : (diffY / Math.max(10, centerY));
     if (invertY) normY = -normY;
 
-    // 3. Calculate Rotation displacement using 360° Wraparound Math! (Game Joystick Rotation)
+    // 3. Calculate Rotation displacement (Game Joystick Rotation - 45° tilt = 100% speed)
     let diffRot = getCircularDiff(parsed.rotation, centerRot);
-    if (parsed.rotation > 360 || parsed.rotation < 0) {
-      diffRot = parsed.rotation - centerRot;
-      normRot = diffRot > 0 ? (diffRot / Math.max(1, 1023 - centerRot)) : (diffRot / Math.max(1, centerRot));
-    } else {
-      normRot = diffRot / 180.0;
-    }
+    normRot = diffRot / 45.0;
     if (invertRot) normRot = -normRot;
 
     // Clamp normalized values to [-1.0, +1.0]
@@ -452,8 +438,8 @@ function processIncomingSerialLine(line) {
     normY = Math.max(-1.0, Math.min(1.0, normY));
     normRot = Math.max(-1.0, Math.min(1.0, normRot));
 
-    // Deadzone Filter (10% deadzone from baseline)
-    const DEADZONE = 0.10;
+    // Deadzone Filter (5% deadzone for responsive control)
+    const DEADZONE = 0.05;
     if (Math.abs(normX) < DEADZONE) normX = 0;
     if (Math.abs(normY) < DEADZONE) normY = 0;
     if (Math.abs(normRot) < DEADZONE) normRot = 0;
@@ -468,6 +454,7 @@ function processIncomingSerialLine(line) {
     if (parsed.action !== null) {
       state.action = parsed.action;
     }
+
 
     if (serialRawValSpan) {
       serialRawValSpan.textContent = `RAW: ${parsed.x},${parsed.rotation},${parsed.y} | dX:${normX > 0 ? '+' : ''}${normX.toFixed(2)} dY:${normY > 0 ? '+' : ''}${normY.toFixed(2)} dRot:${normRot > 0 ? '+' : ''}${normRot.toFixed(2)}`;
@@ -1037,13 +1024,20 @@ function updatePhysics() {
   if (keys.q || keys.Q) aRotation -= settings.rotationSpeed;
   if (keys.e || keys.E) aRotation += settings.rotationSpeed;
 
-  state.vRotation += aRotation;
-  state.vRotation *= settings.rotationFriction;
+  const controlMode = serialControlTypeSelect ? serialControlTypeSelect.value : 'joystick';
+  if (controlMode === 'joystick') {
+    // In Serial Joystick mode, vRotation is set continuously by joystick input - do not damp with friction
+    if (aRotation !== 0) state.vRotation += aRotation;
+  } else {
+    state.vRotation += aRotation;
+    state.vRotation *= settings.rotationFriction;
+  }
 
   // Limit rotation speed
   if (Math.abs(state.vRotation) > settings.maxRotationSpeed) {
     state.vRotation = Math.sign(state.vRotation) * settings.maxRotationSpeed;
   }
+
 
   // 3. Space Brake Key
   if (keys.Space) {
