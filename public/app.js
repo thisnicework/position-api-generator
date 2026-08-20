@@ -58,11 +58,13 @@ function initWebGLShader() {
         vec3 col = palette(length(uv0) + i * 0.4 + u_time * 0.12 + angleShift * 0.15);
 
         d = sin(d * 8.0 + u_time * 1.5 + angleShift) / 8.0;
-        d = abs(d);
-        d = pow(0.01 / d, 1.2);
+        d = abs(d) + 0.001;
+        float val = clamp(0.01 / d, 0.0, 10.0);
+        d = pow(val, 1.2);
 
         finalColor += col * d;
       }
+
 
       // Cursor aura glow
       float auraGlow = exp(-distToCursor * 3.2);
@@ -442,12 +444,17 @@ function determineActionCode() {
 
 // --- Control Panel Show/Hide Toggle Logic ---
 const mainGridEl = document.querySelector('.main-grid');
+const controlPanelEl = document.querySelector('.control-panel');
 const toggleMenuHint = document.getElementById('toggle-menu-hint');
 
 function toggleControlPanel() {
-  if (!mainGridEl) return;
-  mainGridEl.classList.toggle('hide-controls');
-  const isHidden = mainGridEl.classList.contains('hide-controls');
+  if (controlPanelEl) {
+    controlPanelEl.classList.toggle('hidden-panel');
+  }
+  if (mainGridEl) {
+    mainGridEl.classList.toggle('hide-controls');
+  }
+  const isHidden = controlPanelEl ? controlPanelEl.classList.contains('hidden-panel') : false;
   if (toggleMenuHint) {
     toggleMenuHint.textContent = isHidden ? "⌨️ Press 'S' to Show Menu" : "⌨️ Press 'S' to Hide Menu";
   }
@@ -464,14 +471,15 @@ if (toggleMenuHint) {
 
 // --- Initialize Event Listeners ---
 window.addEventListener('keydown', (e) => {
-  // Ignore 'S' shortcut if user is typing in input, select, or textarea
-  const activeEl = document.activeElement;
-  const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
+  if (e.key === 's' || e.key === 'S' || e.code === 'KeyS') {
+    const activeEl = document.activeElement;
+    const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
 
-  if (!isTyping && (e.key === 's' || e.key === 'S')) {
-    toggleControlPanel();
-    e.preventDefault();
-    return;
+    if (!isTyping) {
+      toggleControlPanel();
+      e.preventDefault();
+      return;
+    }
   }
 
   const key = e.key === ' ' ? 'Space' : e.key;
@@ -480,6 +488,7 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
   }
 });
+
 
 window.addEventListener('keyup', (e) => {
   const key = e.key === ' ' ? 'Space' : e.key;
@@ -1460,15 +1469,46 @@ function render() {
   // 1. Render WebGL GLSL Shader Background & Ambient Aura
   const normCursorX = state.x / settings.canvasRangeX;
   const normCursorY = state.y / settings.canvasRangeY;
-  renderShader(normCursorX, normCursorY);
 
-  // 2. Clear 2D HUD Canvas with transparency so WebGL shader background shines through
-  ctx.clearRect(0, 0, width, height);
+  if (gl && glProgram) {
+    renderShader(normCursorX, normCursorY);
+    ctx.clearRect(0, 0, width, height);
+  } else {
+    // 2D Fallback Dark Cosmic Background & Neon Grid
+    ctx.fillStyle = '#030712';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
+    ctx.lineWidth = 1;
+    for (let gx = 0; gx < width; gx += 40) {
+      ctx.beginPath();
+      ctx.moveTo(gx, 0);
+      ctx.lineTo(gx, height);
+      ctx.stroke();
+    }
+    for (let gy = 0; gy < height; gy += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, gy);
+      ctx.lineTo(width, gy);
+      ctx.stroke();
+    }
+
+    // Glowing Cursor Radial Aura
+    const auraGrad = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, 180);
+    const hue = ((state.rotation % 360) + 360) % 360;
+    auraGrad.addColorStop(0, `hsla(${hue}, 100%, 65%, 0.35)`);
+    auraGrad.addColorStop(1, 'rgba(3, 7, 18, 0)');
+    ctx.fillStyle = auraGrad;
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, 180, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Draw Center-Based Distance Reference Circles (Dotted Polar Grid)
   ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
   ctx.lineWidth = 0.8;
   ctx.setLineDash([3, 5]); // Dotted circles
+
   ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
   ctx.font = '10px "Fira Code", monospace';
   

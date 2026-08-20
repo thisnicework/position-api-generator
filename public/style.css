@@ -146,10 +146,11 @@ body {
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
 }
 
-.main-grid.hide-controls .control-panel {
-  transform: translateX(-370px);
-  opacity: 0;
-  pointer-events: none;
+.main-grid.hide-controls .control-panel,
+.control-panel.hidden-panel {
+  transform: translateX(-380px) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .control-panel::-webkit-scrollbar {
