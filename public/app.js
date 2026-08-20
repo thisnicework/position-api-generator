@@ -35,6 +35,14 @@ const serialControlTypeSelect = document.getElementById('serial-control-type');
 const serialAnalogMapCheckbox = document.getElementById('serial-analog-map');
 const serialRawValSpan = document.getElementById('serial-raw-val');
 
+const calibXInput = document.getElementById('calib-x');
+const calibYInput = document.getElementById('calib-y');
+const calibRotInput = document.getElementById('calib-rot');
+const autoCalibrateBtn = document.getElementById('auto-calibrate-btn');
+
+let lastRawSerialValues = { x: 508, y: 10, rot: 179 };
+
+
 
 
 // --- Physics State & Variables ---
@@ -324,51 +332,51 @@ function processIncomingSerialLine(line) {
   const parsed = parseSerialString(line);
   if (!parsed) return;
 
+  // Save last raw parsed values for auto-calibration button
+  lastRawSerialValues = { x: parsed.x, y: parsed.y, rot: parsed.rotation };
+
   const mode = serialControlTypeSelect ? serialControlTypeSelect.value : 'joystick';
 
   if (mode === 'joystick') {
     // 🎮 Joystick Game Movement Mode (게임 방식: 조이스틱 기울임 -> 이동 속도)
+    
+    // Read zero-point baseline from inputs (Default: Center X=508, Y=10, Rot=179)
+    const centerX = calibXInput ? (parseFloat(calibXInput.value) || 508) : 508;
+    const centerY = calibYInput ? (parseFloat(calibYInput.value) || 10) : 10;
+    const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 179) : 179;
+
     let normX = 0;
     let normY = 0;
 
-    // 1. Determine normalized input vector (-1.0 ~ +1.0)
-    if (parsed.x >= 0 && parsed.x <= 1023 && parsed.y >= 0 && parsed.y <= 1023) {
-      // 0..1023 Analog Joystick centered at 512
-      normX = (parsed.x - 512) / 512.0;
-      normY = (parsed.y - 512) / 512.0;
-    } else if (Math.abs(parsed.x) <= 100 && Math.abs(parsed.y) <= 100) {
-      // Direct percentage vector (-100 ~ +100)
-      normX = parsed.x / 100.0;
-      normY = parsed.y / 100.0;
+    // Calculate displacement relative to custom resting zero-point
+    const diffX = parsed.x - centerX;
+    const diffY = parsed.y - centerY;
+
+    // Normalize displacement (-1.0 ~ +1.0)
+    if (diffX > 0) {
+      normX = diffX / Math.max(1, (1023 - centerX));
     } else {
-      // 0..5000 range values: convert to relative direction from center 2500
-      normX = (parsed.x - 2500) / 2500.0;
-      normY = (parsed.y - 2500) / 2500.0;
+      normX = diffX / Math.max(1, centerX);
     }
 
-    // 2. Deadzone Filter (데드존: 중앙 부근 미세 떨림 방지 12%)
+    if (diffY > 0) {
+      normY = diffY / Math.max(1, (1023 - centerY));
+    } else {
+      normY = diffY / Math.max(1, centerY);
+    }
+
+    // Deadzone Filter (12% deadzone from baseline)
     const DEADZONE = 0.12;
     if (Math.abs(normX) < DEADZONE) normX = 0;
     if (Math.abs(normY) < DEADZONE) normY = 0;
 
-    // 3. Set physics movement velocity smoothly (게임 조이스틱 조작)
+    // Set physics movement velocity smoothly (게임 조이스틱 조작)
     state.vx = normX * settings.maxSpeed;
     state.vy = normY * settings.maxSpeed;
 
-    // 4. Rotation Angle
-    if (parsed.rotation >= 0 && parsed.rotation <= 1023 && (parsed.rotation < 80 || parsed.rotation > 280)) {
-      // If rotation value is potentiometer/knob
-      const normR = (parsed.rotation - 512) / 512.0;
-      if (Math.abs(normR) > DEADZONE) {
-        state.vRotation = normR * settings.maxRotationSpeed;
-      } else {
-        state.vRotation = 0;
-      }
-    } else {
-      // Direct angle degree
-      state.rotation = parsed.rotation;
-      state.vRotation = 0;
-    }
+    // Rotation Angle
+    state.rotation = parsed.rotation;
+    state.vRotation = 0;
 
     if (parsed.action !== null) {
       state.action = parsed.action;
@@ -390,6 +398,7 @@ function processIncomingSerialLine(line) {
     logSerialRX(parsed);
   }
 }
+
 
 function logSerialJoystickRX(normX, normY, rot) {
   const line = document.createElement('div');
@@ -627,6 +636,16 @@ if (webserialDisconnectBtn) webserialDisconnectBtn.addEventListener('click', dis
 if (refreshPortsBtn) refreshPortsBtn.addEventListener('click', fetchServerSerialPorts);
 if (nodeConnectBtn) nodeConnectBtn.addEventListener('click', connectNodeSerial);
 if (nodeDisconnectBtn) nodeDisconnectBtn.addEventListener('click', disconnectNodeSerial);
+
+if (autoCalibrateBtn) {
+  autoCalibrateBtn.addEventListener('click', () => {
+    if (calibXInput) calibXInput.value = Math.round(lastRawSerialValues.x);
+    if (calibYInput) calibYInput.value = Math.round(lastRawSerialValues.y);
+    if (calibRotInput) calibRotInput.value = Math.round(lastRawSerialValues.rot);
+    logTerminal('success', `Calibrated Zero-Point to X:${Math.round(lastRawSerialValues.x)}, Y:${Math.round(lastRawSerialValues.y)}, Rot:${Math.round(lastRawSerialValues.rot)}`);
+  });
+}
+
 
 
 function setupConnection() {
