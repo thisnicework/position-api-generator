@@ -278,6 +278,10 @@
               <span class="key-cap">E</span>
               <span class="guide-desc">Rotate CCW / CW</span>
             </div>
+            <div class="guide-row">
+              <span class="key-cap">S</span>
+              <span class="guide-desc">Toggle Settings Menu (메뉴 숨김/표시)</span>
+            </div>
             <div class="guide-row" style="margin-top: 4px; border-top: 1px solid #f0f0f0; padding-top: 4px;">
               <span class="guide-desc" style="font-weight: bold; color: #333;">Serial Input Formats:</span>
             </div>
@@ -299,7 +303,8 @@
 
       <!-- Right Visualizer & Logging -->
       <main class="visualizer-container">
-        <div class="canvas-wrapper">
+        <div class="canvas-wrapper" style="position: relative;">
+          <div id="toggle-menu-hint" class="menu-toggle-hint" title="Press 'S' key to toggle side menu">⌨️ Press 'S' to Hide Menu</div>
           <canvas id="control-canvas"></canvas>
           <div class="canvas-overlay">
             <span class="coordinate-marker label-bottom-left">(0,0)</span>
@@ -308,6 +313,7 @@
             <span class="coordinate-marker label-top-right">(5000,5000)</span>
           </div>
         </div>
+
 
         <!-- Terminal Logs -->
         <div class="terminal-panel">

@@ -471,3 +471,45 @@ code {
   color: #005f9e;
 }
 
+/* Control Panel Hide/Show Toggle CSS */
+.main-grid {
+  transition: grid-template-columns 0.25s ease;
+}
+
+.main-grid.hide-controls {
+  grid-template-columns: 0px 1fr !important;
+  gap: 0 !important;
+}
+
+.main-grid.hide-controls .control-panel {
+  display: none !important;
+}
+
+/* Floating Menu Toggle Shortcut Hint Badge */
+.menu-toggle-hint {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 114, 189, 0.4);
+  color: #0072bd;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'Fira Code', monospace;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.menu-toggle-hint:hover {
+  background: #0072bd;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+

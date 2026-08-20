@@ -117,6 +117,10 @@ function getSmoothedRotation() {
 
 
 
+// --- Rainbow Afterimage Trails & macOS Pinwheel Spin State ---
+const rainbowTrails = [];
+let pinwheelSpinAngle = 0;
+
 // --- Physics State & Variables ---
 const state = {
   x: 2500,       // Start in the center of the 0..5000 grid
@@ -128,6 +132,7 @@ const state = {
   action: 4,     // Action mode state code (default: 4)
 
 };
+
 
 const settings = {
   maxSpeed: 250.0,         // Fast & smooth movement speed (0..5000 map)
@@ -296,12 +301,42 @@ function determineActionCode() {
 }
 
 
+// --- Control Panel Show/Hide Toggle Logic ---
+const mainGridEl = document.querySelector('.main-grid');
+const toggleMenuHint = document.getElementById('toggle-menu-hint');
+
+function toggleControlPanel() {
+  if (!mainGridEl) return;
+  mainGridEl.classList.toggle('hide-controls');
+  const isHidden = mainGridEl.classList.contains('hide-controls');
+  if (toggleMenuHint) {
+    toggleMenuHint.textContent = isHidden ? "⌨️ Press 'S' to Show Menu" : "⌨️ Press 'S' to Hide Menu";
+  }
+  // Recalculate canvas size dynamically
+  setTimeout(() => {
+    handleResize();
+  }, 50);
+}
+
+if (toggleMenuHint) {
+  toggleMenuHint.addEventListener('click', toggleControlPanel);
+}
+
 // --- Initialize Event Listeners ---
 window.addEventListener('keydown', (e) => {
+  // Ignore 'S' shortcut if user is typing in input, select, or textarea
+  const activeEl = document.activeElement;
+  const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
+
+  if (!isTyping && (e.key === 's' || e.key === 'S')) {
+    toggleControlPanel();
+    e.preventDefault();
+    return;
+  }
+
   const key = e.key === ' ' ? 'Space' : e.key;
   if (key in keys) {
     keys[key] = true;
-    // Prevent default browser behavior (like scrolling on Space/Arrows)
     e.preventDefault();
   }
 });
@@ -312,6 +347,7 @@ window.addEventListener('keyup', (e) => {
     keys[key] = false;
   }
 });
+
 
 intervalSlider.addEventListener('input', (e) => {
   transmitInterval = parseInt(e.target.value, 10);
@@ -1439,38 +1475,114 @@ function render() {
     ctx.fillText(`d=${distFromCenter.toFixed(0)}`, midX + 6, midY - 4);
   }
 
-  // Save context for dot drawing
+  // Update macOS pinwheel spin angle and rainbow trail afterimage
+  pinwheelSpinAngle = (pinwheelSpinAngle + 4) % 360;
+  const nowTime = Date.now();
+  const currentHue = ((state.rotation % 360) + 360) % 360;
+
+  // Record trail frame sample
+  rainbowTrails.push({
+    x: screenX,
+    y: screenY,
+    rotation: state.rotation,
+    hue: currentHue,
+    time: nowTime
+  });
+
+  // Clean old trail points (> 1500ms)
+  while (rainbowTrails.length > 0 && nowTime - rainbowTrails[0].time > 1500) {
+    rainbowTrails.shift();
+  }
+
+  // 1. Render Rainbow Rotation Afterimage Trails (잔상 효과)
+  for (let i = 0; i < rainbowTrails.length; i++) {
+    const tr = rainbowTrails[i];
+    const age = nowTime - tr.time;
+    const life = Math.max(0, 1 - age / 1500);
+    const alpha = life * 0.75;
+    const r = 12 + (1 - life) * 10;
+
+    ctx.save();
+    ctx.translate(tr.x, tr.y);
+    ctx.rotate((tr.rotation * Math.PI) / 180);
+
+    // Glowing color aura
+    ctx.fillStyle = `hsla(${tr.hue}, 100%, 60%, ${alpha * 0.35})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rainbow outer ring
+    ctx.strokeStyle = `hsla(${tr.hue}, 100%, 50%, ${alpha})`;
+    ctx.lineWidth = 2.5 * life;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Center glowing core dot
+    ctx.fillStyle = `hsla(${tr.hue}, 100%, 70%, ${alpha * 0.9})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, 4 * life, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // 2. Render macOS Spinning Rainbow Pinwheel Cursor at (screenX, screenY)
   ctx.save();
   ctx.translate(screenX, screenY);
-  ctx.rotate((state.rotation * Math.PI) / 180);
+  ctx.rotate(((state.rotation + pinwheelSpinAngle) * Math.PI) / 180);
 
-  // MATLAB Marker Outer Circle (Blue border)
-  ctx.strokeStyle = '#0072bd'; // MATLAB Blue
-  ctx.lineWidth = 2.5;
-  ctx.fillStyle = '#e1f5fe'; // MATLAB Light blue fill
+  const pinwheelRadius = 18;
+  const pinwheelColors = ['#FF3B30', '#FFCC00', '#34C759', '#32ADE6', '#007AFF', '#AF52DE'];
+  const sectorAngle = (Math.PI * 2) / 6;
+
+  // 6 Conic Sectors (Red, Yellow, Green, Cyan, Blue, Magenta)
+  for (let i = 0; i < 6; i++) {
+    const startA = i * sectorAngle;
+    const endA = startA + sectorAngle;
+    ctx.fillStyle = pinwheelColors[i];
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, pinwheelRadius, startA, endA);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Metallic Rim & Glossy 3D Highlight Overlay
+  const glossGrad = ctx.createLinearGradient(0, -pinwheelRadius, 0, pinwheelRadius);
+  glossGrad.addColorStop(0, 'rgba(255, 255, 255, 0.45)');
+  glossGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.05)');
+  glossGrad.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
+  ctx.fillStyle = glossGrad;
   ctx.beginPath();
-  ctx.arc(0, 0, 14, 0, Math.PI * 2);
+  ctx.arc(0, 0, pinwheelRadius, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Direction/Vector arrow inside dot pointing forward (Orange/Red)
-  ctx.fillStyle = '#d95319'; // MATLAB Orange
+  // White Center Cap
+  ctx.fillStyle = '#FFFFFF';
   ctx.beginPath();
-  ctx.moveTo(0, -9); // Tip
-  ctx.lineTo(-4, -2); // Left base
-  ctx.lineTo(-1.5, -3); // Inner left
-  ctx.lineTo(-1.5, 4);  // Tail left
-  ctx.lineTo(1.5, 4);   // Tail right
-  ctx.lineTo(1.5, -3);  // Inner right
-  ctx.lineTo(4, -2);  // Right base
+  ctx.arc(0, 0, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Pointer Arrow on top of pinwheel (Orange Pointer)
+  ctx.fillStyle = '#d95319';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, -pinwheelRadius - 6);
+  ctx.lineTo(-5, -pinwheelRadius + 2);
+  ctx.lineTo(5, -pinwheelRadius + 2);
   ctx.closePath();
   ctx.fill();
-
-  // Center core dot
-  ctx.fillStyle = '#0072bd';
-  ctx.beginPath();
-  ctx.arc(0, 0, 3, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.stroke();
 
   ctx.restore();
   
@@ -1479,9 +1591,10 @@ function render() {
   ctx.font = '11px "Fira Code", monospace';
   ctx.fillText(
     `(${state.x.toFixed(0)}, ${state.y.toFixed(0)}, ${Math.round(state.rotation)}°)`,
-    screenX + 22,
+    screenX + 24,
     screenY + 4
   );
+
 
   // Restore clip context
   ctx.restore();
