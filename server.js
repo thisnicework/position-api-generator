@@ -36,7 +36,8 @@ function broadcastScheduled(stateData, monitorDelayMs) {
       const executeAt = baseTime + (monitorIndex * stepDelay);
 
       const scheduledPayload = {
-        type: 'scheduled_state',
+        type: 'state',
+        scheduledType: 'scheduled_state',
         monitorIndex: monitorIndex,
         executeAt: executeAt,
         delayMs: stepDelay,
@@ -48,6 +49,7 @@ function broadcastScheduled(stateData, monitorDelayMs) {
     }
   });
 }
+
 
 // HTTP POST endpoint for state updates
 app.post('/api/state', (req, res) => {
@@ -96,12 +98,14 @@ wss.on('connection', (ws) => {
   // Send latest state to newly connected client (TouchDesigner) immediately
   const initialExecuteAt = Date.now() + (ws.monitorIndex * defaultMonitorDelayMs);
   ws.send(JSON.stringify({
-    type: 'scheduled_state',
+    type: 'state',
+    scheduledType: 'scheduled_state',
     monitorIndex: ws.monitorIndex,
     executeAt: initialExecuteAt,
     delayMs: defaultMonitorDelayMs,
     ...latestState
   }));
+
   
   ws.on('message', (message) => {
     try {
