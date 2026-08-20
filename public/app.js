@@ -43,28 +43,11 @@ function initWebGLShader() {
     }
 
     void main() {
-      vec2 uv = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / min(u_resolution.x, u_resolution.y);
-      vec2 cursorUV = (u_cursor * 2.0 - 1.0);
-      cursorUV.y = -cursorUV.y;
-
-      float distToCursor = length(uv - cursorUV);
-
-      // Pure Pitch Black Background (#000000)
-      vec3 finalColor = vec3(0.0, 0.0, 0.0);
-
-      // High-contrast cursor glowing ambient aura on pure black
-      float auraGlow = exp(-distToCursor * 2.5);
-      vec3 auraColor = palette(u_rotation / 360.0 + u_time * 0.05);
-      finalColor += auraColor * auraGlow * 0.7;
-
-      // Subtle Cyber Grid overlay
-      vec2 gridUV = gl_FragCoord.xy / 50.0;
-      float grid = step(0.98, fract(gridUV.x)) + step(0.98, fract(gridUV.y));
-      finalColor += vec3(0.0, 0.45, 0.85) * grid * 0.04;
-
-      gl_FragColor = vec4(finalColor, 1.0);
+      // Pure Pitch Void Black Canvas (#000000) for Modern Fine Art Aesthetics
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
     }
   `;
+
 
 
   function createShader(type, source) {
@@ -1513,138 +1496,12 @@ function render() {
     // 2D Fallback Pure Pitch Black Background (#000000)
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
-
-
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
-    ctx.lineWidth = 1;
-    for (let gx = 0; gx < width; gx += 40) {
-      ctx.beginPath();
-      ctx.moveTo(gx, 0);
-      ctx.lineTo(gx, height);
-      ctx.stroke();
-    }
-    for (let gy = 0; gy < height; gy += 40) {
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(width, gy);
-      ctx.stroke();
-    }
-
-    // Glowing Cursor Radial Aura
-    const auraGrad = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, 180);
-    const hue = ((state.rotation % 360) + 360) % 360;
-    auraGrad.addColorStop(0, `hsla(${hue}, 100%, 65%, 0.35)`);
-    auraGrad.addColorStop(1, 'rgba(3, 7, 18, 0)');
-    ctx.fillStyle = auraGrad;
-    ctx.beginPath();
-    ctx.arc(screenX, screenY, 180, 0, Math.PI * 2);
-    ctx.fill();
   }
 
   const isScreensaver = (mainGridEl && mainGridEl.classList.contains('hide-controls')) || (appContainerEl && appContainerEl.classList.contains('screensaver-mode'));
 
-  // Draw Center-Based Distance Reference Circles (Dotted Polar Grid)
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
-  ctx.lineWidth = 0.8;
-  ctx.setLineDash([3, 5]); // Dotted circles
-
-  ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
-  ctx.font = '10px "Fira Code", monospace';
-  
-  for (let r = 500; r <= 2500; r += 500) {
-    const radius = (r / 5000) * width;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // Draw distance level text label on each circle (Hide in screensaver mode)
-    if (!isScreensaver && r < 2500) {
-      ctx.fillText(`${r}`, centerX + 4, centerY - radius + 11);
-    }
-  }
-  ctx.setLineDash([]); // Reset dash
 
 
-  // Draw Past 5 Seconds Trajectory Trail on HUD Canvas
-  const history = actionTracker.trajectoryHistory;
-  const now = Date.now();
-  if (history.length > 1) {
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    for (let i = 0; i < history.length - 1; i++) {
-      const pt1 = history[i];
-      const pt2 = history[i + 1];
-
-      const age1 = now - pt1.time;
-      if (age1 > 5000) continue;
-
-      const ageRatio = Math.max(0, Math.min(1, 1 - age1 / 5000));
-      const alpha = 0.08 + ageRatio * 0.67;
-
-      const x1 = (pt1.x / settings.canvasRangeX) * width;
-      const y1 = height - (pt1.y / settings.canvasRangeY) * height;
-      const x2 = (pt2.x / settings.canvasRangeX) * width;
-      const y2 = height - (pt2.y / settings.canvasRangeY) * height;
-
-      ctx.strokeStyle = `rgba(56, 189, 248, ${alpha.toFixed(2)})`;
-      ctx.lineWidth = 1.2 + ageRatio * 1.8;
-
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-    }
-
-    // Connect last history point to current dot position
-    const lastPt = history[history.length - 1];
-    const lx = (lastPt.x / settings.canvasRangeX) * width;
-    const ly = height - (lastPt.y / settings.canvasRangeY) * height;
-
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.75)';
-    ctx.lineWidth = 3.0;
-    ctx.beginPath();
-    ctx.moveTo(lx, ly);
-    ctx.lineTo(screenX, screenY);
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  // Draw Center Crosshair / Point (2500, 2500)
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(centerX - 6, centerY);
-  ctx.lineTo(centerX + 6, centerY);
-  ctx.moveTo(centerX, centerY - 6);
-  ctx.lineTo(centerX, centerY + 6);
-  ctx.stroke();
-  ctx.fillStyle = '#38bdf8';
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, 2.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Draw target dot connection line from SCREEN CENTER
-  ctx.strokeStyle = 'rgba(251, 146, 60, 0.5)';
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(centerX, centerY);
-  ctx.lineTo(screenX, screenY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Draw distance label on the midpoint of the line if target is not at center (Hide in screensaver mode)
-  const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
-  if (!isScreensaver && distFromCenter > 80) {
-    const midX = (centerX + screenX) / 2;
-    const midY = (centerY + screenY) / 2;
-    ctx.fillStyle = '#fb923c';
-    ctx.font = '500 10px "Fira Code", monospace';
-    ctx.fillText(`d=${distFromCenter.toFixed(0)}`, midX + 6, midY - 4);
-  }
 
 
   const nowTime = Date.now();
