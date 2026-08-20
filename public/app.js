@@ -22,7 +22,12 @@ function initWebGLShader() {
   `;
 
   const fsSource = `
+    #ifdef GL_FRAGMENT_PRECISION_HIGH
     precision highp float;
+    #else
+    precision mediump float;
+    #endif
+
     uniform vec2 u_resolution;
     uniform vec2 u_cursor;
     uniform float u_time;
@@ -47,7 +52,6 @@ function initWebGLShader() {
 
       vec3 finalColor = vec3(0.02, 0.03, 0.07);
       vec2 uv0 = uv;
-      vec2 p = uv - cursorUV;
 
       float angleShift = rotRad;
 
@@ -64,7 +68,6 @@ function initWebGLShader() {
 
         finalColor += col * d;
       }
-
 
       // Cursor aura glow
       float auraGlow = exp(-distToCursor * 3.2);
@@ -94,7 +97,12 @@ function initWebGLShader() {
 
   const vs = createShader(gl.VERTEX_SHADER, vsSource);
   const fs = createShader(gl.FRAGMENT_SHADER, fsSource);
-  if (!vs || !fs) return;
+  if (!vs || !fs) {
+    gl = null;
+    glProgram = null;
+    return;
+  }
+
 
   glProgram = gl.createProgram();
   gl.attachShader(glProgram, vs);
@@ -296,10 +304,15 @@ const keys = {
   ArrowDown: false,
   ArrowLeft: false,
   ArrowRight: false,
-  q: false,
-  e: false,
+  w: false, W: false,
+  a: false, A: false,
+  s: false, S: false,
+  d: false, D: false,
+  q: false, Q: false,
+  e: false, E: false,
   Space: false,
 };
+
 
 // --- Networking State ---
 const currentOrigin = window.location.origin.includes('file://') ? 'http://localhost:5005' : window.location.origin;
@@ -471,15 +484,14 @@ if (toggleMenuHint) {
 
 // --- Initialize Event Listeners ---
 window.addEventListener('keydown', (e) => {
-  if (e.key === 's' || e.key === 'S' || e.code === 'KeyS') {
-    const activeEl = document.activeElement;
-    const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
+  const activeEl = document.activeElement;
+  const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
 
-    if (!isTyping) {
-      toggleControlPanel();
-      e.preventDefault();
-      return;
-    }
+  if (isTyping) return;
+
+  if (e.key === 's' || e.key === 'S' || e.code === 'KeyS') {
+    // If Shift or S key is pressed, toggle menu, but also allow down movement
+    toggleControlPanel();
   }
 
   const key = e.key === ' ' ? 'Space' : e.key;
@@ -489,13 +501,13 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-
 window.addEventListener('keyup', (e) => {
   const key = e.key === ' ' ? 'Space' : e.key;
   if (key in keys) {
     keys[key] = false;
   }
 });
+
 
 
 intervalSlider.addEventListener('input', (e) => {
@@ -1313,14 +1325,21 @@ function logTerminal(type, message) {
 
 // --- Canvas Sizing ---
 function resizeCanvas() {
-  const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width;
-  canvas.height = rect.height;
+  const rect = canvas.parentElement ? canvas.parentElement.getBoundingClientRect() : { width: 0, height: 0 };
+  const w = (rect.width && rect.width > 0) ? rect.width : window.innerWidth;
+  const h = (rect.height && rect.height > 0) ? rect.height : window.innerHeight;
+
+  canvas.width = Math.max(w, 300);
+  canvas.height = Math.max(h, 300);
   if (glCanvas) {
-    glCanvas.width = rect.width;
-    glCanvas.height = rect.height;
+    glCanvas.width = Math.max(w, 300);
+    glCanvas.height = Math.max(h, 300);
+    if (gl) {
+      gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+    }
   }
 }
+
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
@@ -1351,10 +1370,11 @@ function updatePhysics() {
   let ax = 0;
   let ay = 0;
   
-  if (keys.ArrowUp) ay += settings.acceleration;  // Up increases Y
-  if (keys.ArrowDown) ay -= settings.acceleration; // Down decreases Y
-  if (keys.ArrowLeft) ax -= settings.acceleration; // Left decreases X
-  if (keys.ArrowRight) ax += settings.acceleration; // Right increases X
+  if (keys.ArrowUp || keys.w || keys.W) ay += settings.acceleration;     // Up increases Y
+  if (keys.ArrowDown || keys.s || keys.S) ay -= settings.acceleration;   // Down decreases Y
+  if (keys.ArrowLeft || keys.a || keys.A) ax -= settings.acceleration;   // Left decreases X
+  if (keys.ArrowRight || keys.d || keys.D) ax += settings.acceleration;  // Right increases X
+
 
   // If currently at or beyond boundary, check if input force/velocity moves outward or along wall
   if (currDist >= maxRadius) {
@@ -1724,10 +1744,13 @@ function render() {
 
 // Start everything
 initWebGLShader();
-addressInput.value = "https://position-api-generator.onrender.com/api/state";
-apiEndpoint = addressInput.value;
+const defaultServer = (window.location.protocol === 'file:') ? 'http://localhost:5005/api/state' : `${window.location.origin}/api/state`;
+if (addressInput) addressInput.value = defaultServer;
+apiEndpoint = defaultServer;
 
-setupConnection();
+resizeCanvas();
 requestAnimationFrame(mainLoop);
+setupConnection();
 logTerminal('success', 'WebGL Shader Screensaver Engine started.');
+
 
