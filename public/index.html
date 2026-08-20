@@ -133,47 +133,78 @@
             </div>
 
 
-            <!-- Interactive Zero-Point Calibration Section -->
+            <!-- Interactive Min/Max & Zero-Point Calibration Section -->
             <div id="calibration-controls" style="background: #f4f8fb; border: 1px solid #cce0f0; padding: 10px; border-radius: 4px; margin-bottom: 8px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-size: 11px; font-weight: 700; color: #005f9e;">🎯 Zero-Point Calibration (영점 교정)</span>
+                <span style="font-size: 11px; font-weight: 700; color: #005f9e;">🎯 Min/Max & Zero Calibration (최저/영점/최대 보정)</span>
                 <span id="calib-status-tag" class="badge" style="background: #e1f5fe; color: #0072bd; border: 1px solid #b3e5fc; font-size: 9px;">READY</span>
               </div>
 
               <!-- Calibration Action Buttons -->
               <div style="display: flex; gap: 4px; margin-bottom: 8px;">
                 <button id="start-3s-calib-btn" class="btn btn-primary" style="font-size: 10px; padding: 6px 4px; flex: 2; background: #0072bd; color: #ffffff; border: none;">
-                  ⏱️ 3-Sec Auto Calibrate (3초 영점 교정)
+                  ⏱️ 5s Auto Learn (영점 & 범위를 5초간 학습)
                 </button>
                 <button id="quick-calib-btn" class="btn btn-primary" style="font-size: 10px; padding: 6px 4px; flex: 1;">
-                  Instant (현재값)
+                  Instant Zero
                 </button>
               </div>
 
-              <!-- Progress bar for 3s auto calibration -->
+              <!-- Progress bar for auto calibration -->
               <div id="calib-progress-container" style="display: none; margin-bottom: 8px;">
-                <div style="font-size: 10px; color: #0072bd; margin-bottom: 2px; text-align: center;" id="calib-progress-text">Release joystick... Collecting samples (0%)</div>
+                <div style="font-size: 10px; color: #0072bd; margin-bottom: 2px; text-align: center;" id="calib-progress-text">Move joystick to all limits (0%)</div>
                 <div style="height: 4px; background: #e0e0e0; border-radius: 2px; overflow: hidden;">
                   <div id="calib-progress-bar" style="width: 0%; height: 100%; background: #0072bd; transition: width 0.1s linear;"></div>
                 </div>
               </div>
 
-              <!-- Manual Inputs for Fine-Tuning -->
+              <!-- Manual Inputs for Fine-Tuning Min / Center / Max -->
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 4px;">
+                <div>
+                  <label for="calib-min-x" style="font-size: 9px; display: block; color: var(--text-muted);">Min X (-)</label>
+                  <input type="number" id="calib-min-x" value="0" style="width: 100%; font-size: 10px; padding: 2px 3px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
+                </div>
+                <div>
+                  <label for="calib-x" style="font-size: 9px; display: block; color: #0072bd; font-weight: bold;">Center X (0)</label>
+                  <input type="number" id="calib-x" value="508" style="width: 100%; font-size: 10px; padding: 2px 3px; font-family: monospace; border: 1px solid #0072bd; border-radius: 2px;">
+                </div>
+                <div>
+                  <label for="calib-max-x" style="font-size: 9px; display: block; color: var(--text-muted);">Max X (+)</label>
+                  <input type="number" id="calib-max-x" value="1023" style="width: 100%; font-size: 10px; padding: 2px 3px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 4px;">
+                <div>
+                  <label for="calib-min-y" style="font-size: 9px; display: block; color: var(--text-muted);">Min Y (-)</label>
+                  <input type="number" id="calib-min-y" value="0" style="width: 100%; font-size: 10px; padding: 2px 3px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
+                </div>
+                <div>
+                  <label for="calib-y" style="font-size: 9px; display: block; color: #0072bd; font-weight: bold;">Center Y (0)</label>
+                  <input type="number" id="calib-y" value="179" style="width: 100%; font-size: 10px; padding: 2px 3px; font-family: monospace; border: 1px solid #0072bd; border-radius: 2px;">
+                </div>
+                <div>
+                  <label for="calib-max-y" style="font-size: 9px; display: block; color: var(--text-muted);">Max Y (+)</label>
+                  <input type="number" id="calib-max-y" value="1023" style="width: 100%; font-size: 10px; padding: 2px 3px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
+                </div>
+              </div>
+
               <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;">
                 <div>
-                  <label for="calib-x" style="font-size: 9px; display: block; color: var(--text-muted);">Center X</label>
-                  <input type="number" id="calib-x" value="508" style="width: 100%; font-size: 11px; padding: 3px 4px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
+                  <label for="calib-min-rot" style="font-size: 9px; display: block; color: var(--text-muted);">Min Rot (CCW)</label>
+                  <input type="number" id="calib-min-rot" value="0" style="width: 100%; font-size: 10px; padding: 2px 3px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
                 </div>
                 <div>
-                  <label for="calib-y" style="font-size: 9px; display: block; color: var(--text-muted);">Center Y</label>
-                  <input type="number" id="calib-y" value="179" style="width: 100%; font-size: 11px; padding: 3px 4px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
+                  <label for="calib-rot" style="font-size: 9px; display: block; color: #0072bd; font-weight: bold;">Center Rot (0)</label>
+                  <input type="number" id="calib-rot" value="10" style="width: 100%; font-size: 10px; padding: 2px 3px; font-family: monospace; border: 1px solid #0072bd; border-radius: 2px;">
                 </div>
                 <div>
-                  <label for="calib-rot" style="font-size: 9px; display: block; color: var(--text-muted);">Center Rot</label>
-                  <input type="number" id="calib-rot" value="10" style="width: 100%; font-size: 11px; padding: 3px 4px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
+                  <label for="calib-max-rot" style="font-size: 9px; display: block; color: var(--text-muted);">Max Rot (CW)</label>
+                  <input type="number" id="calib-max-rot" value="360" style="width: 100%; font-size: 10px; padding: 2px 3px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
                 </div>
               </div>
             </div>
+
 
             <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">
               <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: normal; margin: 0;">

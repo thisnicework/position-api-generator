@@ -42,9 +42,18 @@ const serialRawValSpan = document.getElementById('serial-raw-val');
 
 
 
+const calibMinXInput = document.getElementById('calib-min-x');
 const calibXInput = document.getElementById('calib-x');
+const calibMaxXInput = document.getElementById('calib-max-x');
+
+const calibMinYInput = document.getElementById('calib-min-y');
 const calibYInput = document.getElementById('calib-y');
+const calibMaxYInput = document.getElementById('calib-max-y');
+
+const calibMinRotInput = document.getElementById('calib-min-rot');
 const calibRotInput = document.getElementById('calib-rot');
+const calibMaxRotInput = document.getElementById('calib-max-rot');
+
 const calibStatusTag = document.getElementById('calib-status-tag');
 const start3sCalibBtn = document.getElementById('start-3s-calib-btn');
 const quickCalibBtn = document.getElementById('quick-calib-btn');
@@ -56,7 +65,8 @@ let lastRawSerialValues = { x: 508, y: 179, rot: 10 };
 let isCalibrating = false;
 let calibSamples = [];
 let calibStartTime = 0;
-const CALIB_DURATION = 3000;
+const CALIB_DURATION = 5000;
+
 
 
 
@@ -428,10 +438,18 @@ function processIncomingSerialLine(line) {
   if (mode === 'joystick') {
     // 🎮 Joystick Game Movement Mode (게임 방식: 조이스틱 기울임 -> 이동 속도 및 연속 회전)
     
-    // Read zero-point baseline from inputs (Default: Center X=508, Y=179, Rot=10)
+    // Read Min, Center, Max baseline values from inputs
+    const minX = calibMinXInput ? (parseFloat(calibMinXInput.value) || 0) : 0;
     const centerX = calibXInput ? (parseFloat(calibXInput.value) || 508) : 508;
+    const maxX = calibMaxXInput ? (parseFloat(calibMaxXInput.value) || 1023) : 1023;
+
+    const minY = calibMinYInput ? (parseFloat(calibMinYInput.value) || 0) : 0;
     const centerY = calibYInput ? (parseFloat(calibYInput.value) || 179) : 179;
+    const maxY = calibMaxYInput ? (parseFloat(calibMaxYInput.value) || 1023) : 1023;
+
+    const minRot = calibMinRotInput ? (parseFloat(calibMinRotInput.value) || 0) : 0;
     const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 10) : 10;
+    const maxRot = calibMaxRotInput ? (parseFloat(calibMaxRotInput.value) || 360) : 360;
 
     const invertX = serialInvertXCheckbox ? serialInvertXCheckbox.checked : false;
     const invertY = serialInvertYCheckbox ? serialInvertYCheckbox.checked : false;
@@ -441,32 +459,44 @@ function processIncomingSerialLine(line) {
     let normY = 0;
     let normRot = 0;
 
-    // 1. Calculate X displacement relative to resting zero-point (Sensitive 30-unit span for equal -X/+X)
+    // 1. Piecewise X displacement normalization (-1.0 ~ +1.0)
     const diffX = parsed.x - centerX;
-    normX = diffX / 30.0;
+    if (diffX > 0) {
+      normX = diffX / Math.max(5, maxX - centerX);
+    } else {
+      normX = diffX / Math.max(5, centerX - minX);
+    }
     if (invertX) normX = -normX;
 
-    // 2. Calculate Y displacement relative to resting zero-point (Sensitive 30-unit span)
+    // 2. Piecewise Y displacement normalization (-1.0 ~ +1.0)
     const diffY = parsed.y - centerY;
-    normY = diffY / 30.0;
+    if (diffY > 0) {
+      normY = diffY / Math.max(5, maxY - centerY);
+    } else {
+      normY = diffY / Math.max(5, centerY - minY);
+    }
     if (invertY) normY = -normY;
 
-    // 3. Calculate Rotation displacement (Sensitive 10° knob tilt span for responsive CW & CCW rotation!)
+    // 3. Piecewise Rotation displacement normalization (-1.0 ~ +1.0)
     let diffRot = getCircularDiff(parsed.rotation, centerRot);
-    normRot = diffRot / 10.0;
+    if (diffRot > 0) {
+      normRot = diffRot / Math.max(5, maxRot - centerRot);
+    } else {
+      normRot = diffRot / Math.max(5, centerRot - minRot);
+    }
     if (invertRot) normRot = -normRot;
-
 
     // Clamp normalized values to [-1.0, +1.0]
     normX = Math.max(-1.0, Math.min(1.0, normX));
     normY = Math.max(-1.0, Math.min(1.0, normY));
     normRot = Math.max(-1.0, Math.min(1.0, normRot));
 
-    // Deadzone Filter (1.5% deadzone so small signals are not killed)
+    // Deadzone Filter (1.5% deadzone)
     const DEADZONE = 0.015;
     if (Math.abs(normX) < DEADZONE) normX = 0;
     if (Math.abs(normY) < DEADZONE) normY = 0;
     if (Math.abs(normRot) < DEADZONE) normRot = 0;
+
 
 
     const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 2.0) : 2.0;
@@ -778,37 +808,68 @@ function start3sCalibration() {
 
   if (calibProgressContainer) calibProgressContainer.style.display = 'block';
   if (calibProgressBar) calibProgressBar.style.width = '0%';
-  if (calibProgressText) calibProgressText.textContent = 'Keep joystick centered... (0%)';
+  if (calibProgressText) calibProgressText.textContent = 'Move joystick to all limits... (0%)';
   if (start3sCalibBtn) {
     start3sCalibBtn.disabled = true;
-    start3sCalibBtn.textContent = 'Sampling...';
+    start3sCalibBtn.textContent = 'Learning...';
   }
 
-  logTerminal('system', 'Started 3-second zero-point calibration. Please release joystick.');
+  logTerminal('system', 'Started 5-second dynamic range calibration. Please move joystick to all limits (+X, -X, +Y, -Y, CW, CCW).');
 }
 
 function finish3sCalibration() {
   isCalibrating = false;
   if (calibSamples.length === 0) return;
 
+  // Initial 15% samples set resting center
+  const centerCount = Math.max(1, Math.floor(calibSamples.length * 0.15));
   let sumX = 0, sumY = 0, sumRot = 0;
+  for (let i = 0; i < centerCount; i++) {
+    sumX += calibSamples[i].x;
+    sumY += calibSamples[i].y;
+    sumRot += calibSamples[i].rot;
+  }
+  const avgX = Math.round(sumX / centerCount);
+  const avgY = Math.round(sumY / centerCount);
+  const avgRot = Math.round(sumRot / centerCount);
+
+  // Compute observed Min & Max across all samples
+  let minObsX = calibSamples[0].x, maxObsX = calibSamples[0].x;
+  let minObsY = calibSamples[0].y, maxObsY = calibSamples[0].y;
+  let minObsRot = calibSamples[0].rot, maxObsRot = calibSamples[0].rot;
+
   calibSamples.forEach(s => {
-    sumX += s.x;
-    sumY += s.y;
-    sumRot += s.rot;
+    minObsX = Math.min(minObsX, s.x);
+    maxObsX = Math.max(maxObsX, s.x);
+    minObsY = Math.min(minObsY, s.y);
+    maxObsY = Math.max(maxObsY, s.y);
+    minObsRot = Math.min(minObsRot, s.rot);
+    maxObsRot = Math.max(maxObsRot, s.rot);
   });
 
-  const avgX = Math.round(sumX / calibSamples.length);
-  const avgY = Math.round(sumY / calibSamples.length);
-  const avgRot = Math.round(sumRot / calibSamples.length);
-
+  if (calibMinXInput) calibMinXInput.value = minObsX;
   if (calibXInput) calibXInput.value = avgX;
-  if (calibYInput) calibYInput.value = avgY;
-  if (calibRotInput) calibRotInput.value = avgRot;
+  if (calibMaxXInput) calibMaxXInput.value = maxObsX;
 
+  if (calibMinYInput) calibMinYInput.value = minObsY;
+  if (calibYInput) calibYInput.value = avgY;
+  if (calibMaxYInput) calibMaxYInput.value = maxObsY;
+
+  if (calibMinRotInput) calibMinRotInput.value = minObsRot;
+  if (calibRotInput) calibRotInput.value = avgRot;
+  if (calibMaxRotInput) calibMaxRotInput.value = maxObsRot;
+
+  localStorage.setItem('5hz_calib_min_x', minObsX);
   localStorage.setItem('5hz_calib_x', avgX);
+  localStorage.setItem('5hz_calib_max_x', maxObsX);
+
+  localStorage.setItem('5hz_calib_min_y', minObsY);
   localStorage.setItem('5hz_calib_y', avgY);
+  localStorage.setItem('5hz_calib_max_y', maxObsY);
+
+  localStorage.setItem('5hz_calib_min_rot', minObsRot);
   localStorage.setItem('5hz_calib_rot', avgRot);
+  localStorage.setItem('5hz_calib_max_rot', maxObsRot);
 
   if (calibStatusTag) {
     calibStatusTag.textContent = 'DONE';
@@ -820,20 +881,36 @@ function finish3sCalibration() {
   if (calibProgressContainer) calibProgressContainer.style.display = 'none';
   if (start3sCalibBtn) {
     start3sCalibBtn.disabled = false;
-    start3sCalibBtn.textContent = '⏱️ 3-Sec Auto Calibrate';
+    start3sCalibBtn.textContent = '⏱️ 5s Auto Learn';
   }
 
-  logTerminal('success', `✅ 3-Sec Calibration Complete! Baseline: X:${avgX}, Y:${avgY}, Rot:${avgRot} (${calibSamples.length} samples)`);
+  logTerminal('success', `✅ 5s Range Calibration Complete! Center: (${avgX}, ${avgY}, ${avgRot}) | X: [${minObsX}..${maxObsX}], Y: [${minObsY}..${maxObsY}]`);
 }
 
 function loadSavedCalibration() {
+  const savedMinX = localStorage.getItem('5hz_calib_min_x');
   const savedX = localStorage.getItem('5hz_calib_x');
-  const savedY = localStorage.getItem('5hz_calib_y');
-  const savedRot = localStorage.getItem('5hz_calib_rot');
+  const savedMaxX = localStorage.getItem('5hz_calib_max_x');
 
+  const savedMinY = localStorage.getItem('5hz_calib_min_y');
+  const savedY = localStorage.getItem('5hz_calib_y');
+  const savedMaxY = localStorage.getItem('5hz_calib_max_y');
+
+  const savedMinRot = localStorage.getItem('5hz_calib_min_rot');
+  const savedRot = localStorage.getItem('5hz_calib_rot');
+  const savedMaxRot = localStorage.getItem('5hz_calib_max_rot');
+
+  if (savedMinX && calibMinXInput) calibMinXInput.value = savedMinX;
   if (savedX && calibXInput) calibXInput.value = savedX;
+  if (savedMaxX && calibMaxXInput) calibMaxXInput.value = savedMaxX;
+
+  if (savedMinY && calibMinYInput) calibMinYInput.value = savedMinY;
   if (savedY && calibYInput) calibYInput.value = savedY;
+  if (savedMaxY && calibMaxYInput) calibMaxYInput.value = savedMaxY;
+
+  if (savedMinRot && calibMinRotInput) calibMinRotInput.value = savedMinRot;
   if (savedRot && calibRotInput) calibRotInput.value = savedRot;
+  if (savedMaxRot && calibMaxRotInput) calibMaxRotInput.value = savedMaxRot;
 }
 
 if (start3sCalibBtn) {
@@ -850,9 +927,10 @@ if (quickCalibBtn) {
     localStorage.setItem('5hz_calib_x', Math.round(lastRawSerialValues.x));
     localStorage.setItem('5hz_calib_y', Math.round(lastRawSerialValues.y));
     localStorage.setItem('5hz_calib_rot', Math.round(lastRawSerialValues.rot));
-    logTerminal('success', `Instant Calibration set to X:${Math.round(lastRawSerialValues.x)}, Y:${Math.round(lastRawSerialValues.y)}, Rot:${Math.round(lastRawSerialValues.rot)}`);
+    logTerminal('success', `Instant Zero set to X:${Math.round(lastRawSerialValues.x)}, Y:${Math.round(lastRawSerialValues.y)}, Rot:${Math.round(lastRawSerialValues.rot)}`);
   });
 }
+
 
 loadSavedCalibration();
 
