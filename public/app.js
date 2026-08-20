@@ -76,15 +76,16 @@ const state = {
 };
 
 const settings = {
-  maxSpeed: 180.0,         // Super fast & responsive movement speed (0..5000 map)
-  acceleration: 24.0,      // Immediate response
-  friction: 0.90,          // Smooth high-speed deceleration
-  rotationSpeed: 10.0,     // Ultra-fast rotation acceleration
-  maxRotationSpeed: 45.0,  // Ultra-fast max rotation speed (2700 deg/sec)
+  maxSpeed: 450.0,         // Extreme Turbo movement speed (0..5000 map)
+  acceleration: 50.0,      // Instant response
+  friction: 0.92,          // Ultra-smooth high-speed deceleration
+  rotationSpeed: 30.0,     // Turbo rotation acceleration
+  maxRotationSpeed: 120.0, // Extreme Turbo rotation speed (7,200 deg/sec = 20 full spins/sec)
   rotationFriction: 0.90,  // Smooth rotation deceleration
   canvasRangeX: 5000,       // Coordinate mapping width (0..5000)
   canvasRangeY: 5000,       // Coordinate mapping height (0..5000)
 };
+
 
 
 
@@ -439,19 +440,19 @@ function processIncomingSerialLine(line) {
     let normY = 0;
     let normRot = 0;
 
-    // 1. Calculate X displacement relative to resting zero-point (Symmetric 60-unit span)
+    // 1. Calculate X displacement relative to resting zero-point (Ultra-sensitive 20-unit span)
     const diffX = parsed.x - centerX;
-    normX = diffX / 60.0;
+    normX = diffX / 20.0;
     if (invertX) normX = -normX;
 
-    // 2. Calculate Y displacement relative to resting zero-point (Symmetric 60-unit span)
+    // 2. Calculate Y displacement relative to resting zero-point (Ultra-sensitive 20-unit span)
     const diffY = parsed.y - centerY;
-    normY = diffY / 60.0;
+    normY = diffY / 20.0;
     if (invertY) normY = -normY;
 
-    // 3. Calculate Rotation displacement (Symmetric 5° tilt = 100% max speed in BOTH CW and CCW!)
+    // 3. Calculate Rotation displacement (Ultra-sensitive 2° tilt = 100% Extreme Turbo speed!)
     let diffRot = getCircularDiff(parsed.rotation, centerRot);
-    normRot = diffRot / 5.0;
+    normRot = diffRot / 2.0;
     if (invertRot) normRot = -normRot;
 
 
@@ -460,13 +461,13 @@ function processIncomingSerialLine(line) {
     normY = Math.max(-1.0, Math.min(1.0, normY));
     normRot = Math.max(-1.0, Math.min(1.0, normRot));
 
-    // Deadzone Filter (2% deadzone for ultra-responsive control)
-    const DEADZONE = 0.02;
+    // Deadzone Filter (1% deadzone for instant reaction)
+    const DEADZONE = 0.01;
     if (Math.abs(normX) < DEADZONE) normX = 0;
     if (Math.abs(normY) < DEADZONE) normY = 0;
     if (Math.abs(normRot) < DEADZONE) normRot = 0;
 
-    const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 2.0) : 2.0;
+    const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 3.0) : 3.0;
 
     // Set physics movement velocity smoothly (게임 조이스틱 조작)
     state.vx = normX * (settings.maxSpeed * speedMult);
@@ -474,6 +475,7 @@ function processIncomingSerialLine(line) {
 
     // Game Joystick Continuous Rotation Velocity (조이스틱 기울임에 따라 연속 회전!)
     state.vRotation = normRot * (settings.maxRotationSpeed * speedMult);
+
 
 
 
