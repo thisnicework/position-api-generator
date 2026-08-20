@@ -277,12 +277,13 @@ const settings = {
   maxSpeed: 250.0,         // Fast & smooth movement speed (0..5000 map)
   acceleration: 20.0,      // Smooth acceleration
   friction: 0.88,          // Natural deceleration
-  rotationSpeed: 10.0,     // Fast rotation speed
-  maxRotationSpeed: 40.0,  // Fast max rotation speed (2400 deg/sec)
+  rotationSpeed: 4.0,      // Smooth keyboard rotation speed
+  maxRotationSpeed: 8.0,   // Controlled max rotation speed (480 deg/sec)
   rotationFriction: 0.85,  // Natural rotation deceleration
   canvasRangeX: 5000,       // Coordinate mapping width (0..5000)
   canvasRangeY: 5000,       // Coordinate mapping height (0..5000)
 };
+
 
 
 
@@ -791,11 +792,15 @@ function processIncomingSerialLine(line) {
 
     const targetVx = normX * (settings.maxSpeed * speedMult);
     const targetVy = normY * (settings.maxSpeed * speedMult);
-    const targetVRot = normRot * (settings.maxRotationSpeed * speedMult);
+
+    // Apply 1.6x power curve to rotation (ultra-gentle micro-touches near center, smooth acceleration at edges)
+    const rotCurve = Math.sign(normRot) * Math.pow(Math.abs(normRot), 1.6);
+    const targetVRot = rotCurve * (settings.maxRotationSpeed * (speedMult * 0.75));
 
     state.vx += (targetVx - state.vx) * LERP;
     state.vy += (targetVy - state.vy) * LERP;
     state.vRotation += (targetVRot - state.vRotation) * LERP;
+
 
 
 
