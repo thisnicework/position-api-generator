@@ -558,6 +558,10 @@ async function connectWebSerial() {
   }
 }
 
+window.connectWebSerial = connectWebSerial;
+window.disconnectWebSerial = disconnectWebSerial;
+
+
 
 
 async function readWebSerialStream() {

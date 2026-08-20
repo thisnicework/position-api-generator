@@ -73,9 +73,10 @@
                 <option value="115200" selected>115200 bps</option>
               </select>
             </div>
-            <button id="webserial-connect-btn" class="btn btn-primary">Connect Serial Port</button>
-            <button id="webserial-disconnect-btn" class="btn btn-danger" style="display: none; margin-top: 6px;">Disconnect Serial</button>
+            <button id="webserial-connect-btn" class="btn btn-primary" onclick="connectWebSerial()">Connect Serial Port</button>
+            <button id="webserial-disconnect-btn" class="btn btn-danger" onclick="disconnectWebSerial()" style="display: none; margin-top: 6px;">Disconnect Serial</button>
           </div>
+
 
           <div id="nodeserial-controls" style="display: none;">
             <div class="form-group">
