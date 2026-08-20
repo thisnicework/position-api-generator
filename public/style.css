@@ -56,8 +56,32 @@ body {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
+
+/* Fullscreen Clean Screensaver Mode (Hide all headers, panels, logs, overlays on 'S' key press) */
+.app-container.screensaver-mode .header,
+.main-grid.hide-controls ~ .header,
+.main-grid.hide-controls .terminal-panel,
+.main-grid.hide-controls .canvas-overlay,
+.app-container.screensaver-mode .terminal-panel,
+.app-container.screensaver-mode .canvas-overlay {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-20px) !important;
+}
+
+.main-grid.hide-controls #toggle-menu-hint,
+.app-container.screensaver-mode #toggle-menu-hint {
+  opacity: 0.18 !important;
+  transition: opacity 0.35s ease;
+}
+
+.main-grid.hide-controls #toggle-menu-hint:hover,
+.app-container.screensaver-mode #toggle-menu-hint:hover {
+  opacity: 1.0 !important;
+}
+
 
 .logo-area {
   display: flex;
@@ -355,6 +379,10 @@ body {
   display: block;
 }
 
+.canvas-overlay {
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
 .canvas-overlay .coordinate-marker {
   position: absolute;
   font-family: 'Fira Code', monospace;
@@ -387,7 +415,7 @@ body {
   border-radius: 8px;
   cursor: pointer;
   box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
-  transition: all 0.2s ease;
+  transition: all 0.35s ease;
   user-select: none;
 }
 
@@ -414,7 +442,9 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
+
 
 .terminal-header {
   display: flex;

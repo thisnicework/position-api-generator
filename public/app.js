@@ -455,18 +455,22 @@ function determineActionCode() {
 
 
 // --- Control Panel Show/Hide Toggle Logic ---
+const appContainerEl = document.querySelector('.app-container');
 const mainGridEl = document.querySelector('.main-grid');
 const controlPanelEl = document.querySelector('.control-panel');
 const toggleMenuHint = document.getElementById('toggle-menu-hint');
 
 function toggleControlPanel() {
+  if (appContainerEl) {
+    appContainerEl.classList.toggle('screensaver-mode');
+  }
   if (controlPanelEl) {
     controlPanelEl.classList.toggle('hidden-panel');
   }
   if (mainGridEl) {
     mainGridEl.classList.toggle('hide-controls');
   }
-  const isHidden = controlPanelEl ? controlPanelEl.classList.contains('hidden-panel') : false;
+  const isHidden = mainGridEl ? mainGridEl.classList.contains('hide-controls') : false;
   if (toggleMenuHint) {
     toggleMenuHint.textContent = isHidden ? "⌨️ Press 'S' to Show Menu" : "⌨️ Press 'S' to Hide Menu";
   }
@@ -475,6 +479,7 @@ function toggleControlPanel() {
     resizeCanvas();
   }, 50);
 }
+
 
 
 if (toggleMenuHint) {
@@ -1403,14 +1408,6 @@ function mainLoop() {
 }
 
 function updatePhysics() {
-  const centerX = 2500;
-  const centerY = 2500;
-  const maxRadius = 2440; // Clamped slightly inside 2500 so marker icon remains fully inside the circle
-
-  const currDx = state.x - centerX;
-  const currDy = state.y - centerY;
-  const currDist = Math.hypot(currDx, currDy);
-
   // 1. Position Input Forces
   let ax = 0;
   let ay = 0;
@@ -1419,22 +1416,6 @@ function updatePhysics() {
   if (keys.ArrowDown || keys.s || keys.S) ay -= settings.acceleration;   // Down decreases Y
   if (keys.ArrowLeft || keys.a || keys.A) ax -= settings.acceleration;   // Left decreases X
   if (keys.ArrowRight || keys.d || keys.D) ax += settings.acceleration;  // Right increases X
-
-
-  // If currently at or beyond boundary, check if input force/velocity moves outward or along wall
-  if (currDist >= maxRadius) {
-    const nextVx = (state.vx + ax) * settings.friction;
-    const nextVy = (state.vy + ay) * settings.friction;
-    const nextDist = Math.hypot((state.x + nextVx) - centerX, (state.y + nextVy) - centerY);
-
-    // If movement pushes outward or along the boundary wall (distance does not decrease), block it!
-    if (nextDist >= currDist) {
-      ax = 0;
-      ay = 0;
-      state.vx = 0;
-      state.vy = 0;
-    }
-  }
 
   state.vx += ax;
   state.vy += ay;
@@ -1458,12 +1439,10 @@ function updatePhysics() {
   state.vRotation += aRotation;
   state.vRotation *= settings.rotationFriction;
 
-
   // Limit rotation speed
   if (Math.abs(state.vRotation) > settings.maxRotationSpeed) {
     state.vRotation = Math.sign(state.vRotation) * settings.maxRotationSpeed;
   }
-
 
   // 3. Space Brake Key
   if (keys.Space) {
@@ -1472,21 +1451,18 @@ function updatePhysics() {
     state.vRotation *= 0.5;
   }
 
-  // 4. Update coordinates
+  // 4. Update coordinates across FULL SCREEN (0..5000 grid)
   state.x += state.vx;
   state.y += state.vy; 
 
-  // Constrain coordinates to circular map boundary centered at (2500, 2500)
-  const dx = state.x - centerX;
-  const dy = state.y - centerY;
-  const dist = Math.hypot(dx, dy);
+  const MIN_BOUND = 20;
+  const MAX_BOUND = 4980;
 
-  if (dist > maxRadius) {
-    state.x = centerX + (dx / dist) * maxRadius;
-    state.y = centerY + (dy / dist) * maxRadius;
-    state.vx = 0;
-    state.vy = 0;
-  }
+  if (state.x < MIN_BOUND) { state.x = MIN_BOUND; state.vx = 0; }
+  if (state.x > MAX_BOUND) { state.x = MAX_BOUND; state.vx = 0; }
+  if (state.y < MIN_BOUND) { state.y = MIN_BOUND; state.vy = 0; }
+  if (state.y > MAX_BOUND) { state.y = MAX_BOUND; state.vy = 0; }
+
 
   // Update angle (keep within 0-360)
   state.rotation = (state.rotation + state.vRotation + 360) % 360;
@@ -1565,6 +1541,8 @@ function render() {
     ctx.fill();
   }
 
+  const isScreensaver = (mainGridEl && mainGridEl.classList.contains('hide-controls')) || (appContainerEl && appContainerEl.classList.contains('screensaver-mode'));
+
   // Draw Center-Based Distance Reference Circles (Dotted Polar Grid)
   ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
   ctx.lineWidth = 0.8;
@@ -1579,8 +1557,8 @@ function render() {
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.stroke();
     
-    // Draw distance level text label on each circle
-    if (r < 2500) {
+    // Draw distance level text label on each circle (Hide in screensaver mode)
+    if (!isScreensaver && r < 2500) {
       ctx.fillText(`${r}`, centerX + 4, centerY - radius + 11);
     }
   }
@@ -1658,15 +1636,16 @@ function render() {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Draw distance label on the midpoint of the line if target is not at center
+  // Draw distance label on the midpoint of the line if target is not at center (Hide in screensaver mode)
   const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
-  if (distFromCenter > 80) {
+  if (!isScreensaver && distFromCenter > 80) {
     const midX = (centerX + screenX) / 2;
     const midY = (centerY + screenY) / 2;
     ctx.fillStyle = '#fb923c';
     ctx.font = '500 10px "Fira Code", monospace';
     ctx.fillText(`d=${distFromCenter.toFixed(0)}`, midX + 6, midY - 4);
   }
+
 
   const nowTime = Date.now();
   const currentHue = ((state.rotation % 360) + 360) % 360;
@@ -1794,15 +1773,18 @@ function render() {
 
   ctx.restore();
   
-  // Draw coordinate label near the dot
-  ctx.fillStyle = 'rgba(248, 250, 252, 0.85)';
-  ctx.font = '11px "Fira Code", monospace';
-  ctx.fillText(
-    `(${state.x.toFixed(0)}, ${state.y.toFixed(0)}, ${Math.round(state.rotation)}°)`,
-    screenX + 24,
-    screenY + 4
-  );
+  // Draw coordinate label near the dot (Hide in screensaver mode)
+  if (!isScreensaver) {
+    ctx.fillStyle = 'rgba(248, 250, 252, 0.85)';
+    ctx.font = '11px "Fira Code", monospace';
+    ctx.fillText(
+      `(${state.x.toFixed(0)}, ${state.y.toFixed(0)}, ${Math.round(state.rotation)}°)`,
+      screenX + 24,
+      screenY + 4
+    );
+  }
 }
+
 
 
 // Start everything
