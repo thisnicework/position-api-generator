@@ -349,8 +349,12 @@ function logSerialRX(parsed) {
 // --- Web Serial API Connection ---
 async function connectWebSerial() {
   if (!('serial' in navigator)) {
-    logTerminal('error', 'Web Serial API is not supported in this browser. Please use Chrome/Edge or Server Serial.');
-    alert('Web Serial API는 Chrome 또는 Edge 브라우저에서만 지원됩니다! Safari/Firefox 사용 시 Server Serial 모드를 사용해 주세요.');
+    let reason = 'Chrome 또는 Edge 브라우저를 사용해야 Web Serial 기능이 지원됩니다.';
+    if (!window.isSecureContext) {
+      reason = '보안 웹 환경(HTTPS 또는 http://localhost:5005)에서만 웹 시리얼 연결이 가능합니다. http://localhost:5005 로 접속해 주세요.';
+    }
+    logTerminal('error', `Web Serial 미지원: ${reason}`);
+    alert(`⚠️ 웹 시리얼 연결 안내\n${reason}`);
     return;
   }
 
@@ -367,17 +371,18 @@ async function connectWebSerial() {
     keepReadingSerial = true;
     readWebSerialStream();
   } catch (err) {
-    if (err.name === 'NotFoundError' || (err.message && err.message.includes('selected'))) {
-      logTerminal('system', 'Web Serial port selection canceled.');
-    } else if (err.name === 'InvalidStateError' || (err.message && (err.message.includes('Failed to open') || err.message.includes('open')))) {
-      logTerminal('error', `Port open failed: ${err.message}. Is Arduino Serial Monitor open? Please close it first!`);
-      alert('시리얼 포트를 열 수 없습니다!\n\n아두이노 IDE의 시리얼 모니터(Serial Monitor)가 열려있다면 먼저 닫은 후 다시 시도해 주세요.');
-    } else {
-      logTerminal('error', `Web Serial connect error: ${err.message}`);
+    let helpMsg = err.message;
+    if (err.name === 'NotFoundError' || err.message.includes('No port selected')) {
+      helpMsg = '시리얼 포트 선택이 취소되었습니다.';
+    } else if (err.message.includes('Failed to open') || err.message.includes('already open') || err.message.includes('Resource busy') || err.message.includes('Access denied') || err.message.includes('occupied')) {
+      helpMsg = '포트를 열 수 없습니다. 아두이노 IDE의 시리얼 모니터를 닫아주세요!';
+      alert('⚠️ 시리얼 포트 연결 실패!\n아두이노 IDE의 [시리얼 모니터] 창이 열려있으면 포트가 점유되어 연결할 수 없습니다. 시리얼 모니터를 닫고 다시 시도해 주세요.');
     }
+    logTerminal('error', `Web Serial 연결 오류: ${helpMsg}`);
     updateSerialBadge('disconnected', 'OFFLINE');
   }
 }
+
 
 async function readWebSerialStream() {
   let textBuffer = '';
@@ -1015,30 +1020,10 @@ function render() {
   ctx.restore();
 }
 
-// Endpoint Presets
-const btnPresetLocal = document.getElementById('btn-preset-local');
-const btnPresetRender = document.getElementById('btn-preset-render');
-
-if (btnPresetLocal) {
-  btnPresetLocal.addEventListener('click', () => {
-    addressInput.value = 'http://localhost:5005/api/state';
-    setupConnection();
-  });
-}
-
-if (btnPresetRender) {
-  btnPresetRender.addEventListener('click', () => {
-    addressInput.value = 'https://position-api-generator.onrender.com/api/state';
-    setupConnection();
-  });
-}
-
-// Start everything with auto-detected default endpoint
-const localDefault = `${currentOrigin}/api/state`;
-addressInput.value = localDefault;
-apiEndpoint = localDefault;
+// Start everything
+addressInput.value = "https://position-api-generator.onrender.com/api/state";
+apiEndpoint = addressInput.value;
 
 setupConnection();
 requestAnimationFrame(mainLoop);
 logTerminal('success', 'Dot visualizer engine started.');
-
