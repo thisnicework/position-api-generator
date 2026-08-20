@@ -865,7 +865,7 @@ function processIncomingSerialLine(line) {
 
 
 
-    if (parsed.action !== null) {
+    if (parsed.action !== null && parsed.action !== 4) {
       state.action = parsed.action;
     }
 
@@ -883,9 +883,10 @@ function processIncomingSerialLine(line) {
     state.vx = 0;
     state.vy = 0;
     state.vRotation = 0;
-    if (parsed.action !== null) {
+    if (parsed.action !== null && parsed.action !== 4) {
       state.action = parsed.action;
     }
+
 
     if (serialRawValSpan) {
       serialRawValSpan.textContent = `RAW: X:${parsed.x.toFixed(1)} Y:${parsed.y.toFixed(1)} R:${parsed.rotation.toFixed(0)}°`;
