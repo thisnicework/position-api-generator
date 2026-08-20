@@ -76,15 +76,16 @@ const state = {
 };
 
 const settings = {
-  maxSpeed: 29.4,          // 70% of previous max speed (42.0 * 0.7)
-  acceleration: 3.85,      // 70% of previous acceleration (5.5 * 0.7)
-  friction: 0.85,          // Retains snappy deceleration
-  rotationSpeed: 0.7,      // 70% of previous rotation acceleration (1.0 * 0.7)
-  maxRotationSpeed: 2.8,   // 70% of previous max rotation speed (4.0 * 0.7 = 168 deg/sec)
-  rotationFriction: 0.75,  // Retains snappy rotation deceleration
+  maxSpeed: 60.0,          // Fast & responsive movement speed (0..5000 map)
+  acceleration: 8.0,       // Fast responsiveness
+  friction: 0.88,          // Smooth deceleration
+  rotationSpeed: 2.0,      // Fast rotation acceleration
+  maxRotationSpeed: 10.0,  // Fast max rotation speed (600 deg/sec)
+  rotationFriction: 0.85,  // Smooth rotation deceleration
   canvasRangeX: 5000,       // Coordinate mapping width (0..5000)
   canvasRangeY: 5000,       // Coordinate mapping height (0..5000)
 };
+
 
 // --- Keyboard State ---
 const keys = {
@@ -256,8 +257,27 @@ window.addEventListener('keyup', (e) => {
 });
 
 intervalSlider.addEventListener('input', (e) => {
-  const val = parseInt(e.target.value);
-  intervalVal.textContent = `${val} ms`;
+  transmitInterval = parseInt(e.target.value, 10);
+  intervalVal.textContent = `${transmitInterval} ms`;
+  if (connectionState === 'connected') {
+    clearInterval(transmitIntervalId);
+    startTransmissionLoop();
+  }
+});
+
+const joystickSpeedSlider = document.getElementById('joystick-speed-slider');
+const speedSliderValSpan = document.getElementById('speed-slider-val');
+
+if (joystickSpeedSlider && speedSliderValSpan) {
+  joystickSpeedSlider.addEventListener('input', (e) => {
+    const mult = parseFloat(e.target.value) || 1.5;
+    speedSliderValSpan.textContent = `${mult.toFixed(1)}x`;
+  });
+}
+
+
+clearTerminalBtn.addEventListener('click', () => {
+  terminalBody.innerHTML = '';
 });
 
 connectBtn.addEventListener('click', () => {
@@ -444,12 +464,15 @@ function processIncomingSerialLine(line) {
     if (Math.abs(normY) < DEADZONE) normY = 0;
     if (Math.abs(normRot) < DEADZONE) normRot = 0;
 
+    const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 1.5) : 1.5;
+
     // Set physics movement velocity smoothly (게임 조이스틱 조작)
-    state.vx = normX * settings.maxSpeed;
-    state.vy = normY * settings.maxSpeed;
+    state.vx = normX * (settings.maxSpeed * speedMult);
+    state.vy = normY * (settings.maxSpeed * speedMult);
 
     // Game Joystick Continuous Rotation Velocity (조이스틱 기울임에 따라 연속 회전!)
-    state.vRotation = normRot * settings.maxRotationSpeed;
+    state.vRotation = normRot * (settings.maxRotationSpeed * speedMult);
+
 
     if (parsed.action !== null) {
       state.action = parsed.action;
