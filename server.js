@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Store latest state in server memory
-let latestState = { x: 2500, y: 2500, rotation: 0, action: 3, timestamp: 0, method: 'none' };
+let latestState = { x: 2500, y: 2500, rotation: 0, action: 4, timestamp: 0, method: 'none' };
 
 // Create HTTP server
 const server = http.createServer(app);
@@ -37,8 +37,9 @@ app.post('/api/state', (req, res) => {
     return res.status(400).json({ error: 'Invalid state format. Require x, y, rotation numbers.' });
   }
 
-  const actionCode = typeof action === 'number' ? action : 3;
+  const actionCode = typeof action === 'number' ? action : 4;
   latestState = { x, y, rotation, action: actionCode, timestamp, method: 'HTTP POST' };
+
   
   // Log receipt in a formatted way
   logState('HTTP', latestState);
@@ -75,7 +76,7 @@ wss.on('connection', (ws) => {
       const data = JSON.parse(message);
       const { x, y, rotation, action, timestamp } = data;
       
-      const actionCode = typeof action === 'number' ? action : 3;
+      const actionCode = typeof action === 'number' ? action : 4;
       latestState = { x, y, rotation, action: actionCode, timestamp, method: 'WebSocket' };
       logState('WS', latestState);
       
@@ -100,7 +101,7 @@ function logState(type, state) {
   const xStr = state.x.toFixed(1).padStart(6, ' ');
   const yStr = state.y.toFixed(1).padStart(6, ' ');
   const rStr = state.rotation.toFixed(0).padStart(3, ' ');
-  const aStr = String(state.action !== undefined ? state.action : 3).padStart(2, ' ');
+  const aStr = String(state.action !== undefined ? state.action : 4).padStart(2, ' ');
   
   let typeColor = '\x1b[33m'; // Default Yellow
   if (type === 'WS') typeColor = '\x1b[32m'; // Green
@@ -129,7 +130,8 @@ function parseSerialLine(line) {
   const trimmed = line.trim();
   if (!trimmed) return null;
 
-  let x = null, y = null, rotation = null, action = 3;
+  let x = null, y = null, rotation = null, action = 4;
+
 
   // 1. Try JSON format: {"x":2500, "y":2500, "rotation":90}
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) {

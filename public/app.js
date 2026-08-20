@@ -69,7 +69,8 @@ const state = {
   vy: 0,         // Velocity Y
   rotation: 0,   // Angle in degrees (0 - 360)
   vRotation: 0,  // Rotational velocity (deg/frame)
-  action: 3,     // Action mode state code 0..6 (default: 3)
+  action: 4,     // Action mode state code (default: 4)
+
 };
 
 const settings = {
@@ -177,12 +178,12 @@ function determineActionCode() {
   // Update trajectory points
   updateTrajectory(now);
 
-  // Mode 6: (2500, 5000)에 근접했을 때 (within 400 units of top point)
+  // Mode 7: (2500, 5000) 상단 영역 근접 (shifted from 6)
   if (distToTop <= 400) {
-    return 6;
+    return 7;
   }
 
-  // Mode 5: 원 보더 방향 이동 (후한 판정 조건: 반경 >= 1400, 지속 시간 >= 800ms)
+  // Mode 6: 원 보더 방향 이동 (shifted from 5)
   const isNearBorder = distFromCenter >= 1400;
   const nx = distFromCenter > 0 ? (state.x - 2500) / distFromCenter : 0;
   const ny = distFromCenter > 0 ? (state.y - 2500) / distFromCenter : 0;
@@ -200,7 +201,7 @@ function determineActionCode() {
       actionTracker.borderMoveStartTime = now;
     }
     if (now - actionTracker.borderMoveStartTime >= 800) {
-      return 5;
+      return 6;
     }
   } else {
     if (!actionTracker.lastBorderPauseTime) {
@@ -211,10 +212,14 @@ function determineActionCode() {
     }
   }
 
-  // Mode 2: 제자리에서 빙빙 (Spinning in place)
-  const isSpinningKeys = keys.q || keys.Q || keys.e || keys.E || rotSpeed > 0.6;
-  if (isSpinningKeys && linearSpeed < 3.5) {
-    return 2;
+  // Rotation Mode Evaluation: rotate가 느리면 2, 빠르면 3
+  const isRotating = keys.q || keys.Q || keys.e || keys.E || rotSpeed >= 0.15;
+  if (isRotating && linearSpeed < 4.0) {
+    if (rotSpeed >= 1.2) {
+      return 3; // Fast Rotation (빠른 회전)
+    } else {
+      return 2; // Slow Rotation (느린 회전)
+    }
   }
 
   // Mode 1: 닫힌 도형/원 이동 (Closed Shape Loop Detection)
@@ -226,9 +231,10 @@ function determineActionCode() {
     return 1;
   }
 
-  // Mode 3: 기본
-  return 3;
+  // Mode 4: 기본 (Default - shifted from 3)
+  return 4;
 }
+
 
 // --- Initialize Event Listeners ---
 window.addEventListener('keydown', (e) => {
@@ -1031,14 +1037,16 @@ function updatePhysics() {
 
   if (telA) {
     const actionLabels = {
-      1: '1 (Circling >= 1.2 turns)',
-      2: '2 (Spinning in Place)',
-      3: '3 (Default)',
-      5: '5 (Border Push >= 1.5s)',
-      6: '6 (Near Top 2500, 5000)',
+      1: '1 (Circling / Closed Loop)',
+      2: '2 (Rotate Slow 느린 회전)',
+      3: '3 (Rotate Fast 빠른 회전)',
+      4: '4 (Default 기본)',
+      6: '6 (Border Push >= 0.8s)',
+      7: '7 (Near Top 2500, 5000)',
     };
     telA.textContent = actionLabels[state.action] !== undefined ? actionLabels[state.action] : `${state.action}`;
   }
+
 }
 
 function render() {
