@@ -514,40 +514,50 @@ function logSerialRX(parsed) {
 
 // --- Web Serial API Connection ---
 async function connectWebSerial() {
+  console.log('[SERIAL] connectWebSerial button clicked');
+  logTerminal('system', 'Connect Serial Port button clicked. Checking Web Serial API...');
+
   if (!('serial' in navigator)) {
-    let reason = 'Chrome 또는 Edge 브라우저를 사용해야 Web Serial 기능이 지원됩니다.';
-    if (!window.isSecureContext) {
-      reason = '보안 웹 환경(HTTPS 또는 http://localhost:5005)에서만 웹 시리얼 연결이 가능합니다. http://localhost:5005 로 접속해 주세요.';
-    }
-    logTerminal('error', `Web Serial 미지원: ${reason}`);
-    alert(`⚠️ 웹 시리얼 연결 안내\n${reason}`);
+    let reason = '현재 브라우저 환경에서 Web Serial API를 사용할 수 없습니다.\n\n[해결 방법]\n1. 브라우저 주소창에 http://localhost:5005 로 접속해 주세요.\n   (Live Server 127.0.0.1:5500 주소에서는 보안 문제로 제한될 수 있습니다)\n2. 또는 위쪽 [Serial Source Mode]를 "Server Serial (Node.js API)"로 바꿔서 연결해 보세요!';
+    logTerminal('error', `Web Serial 미지원: http://localhost:5005 접속 또는 Server Serial 모드를 사용하세요.`);
+    alert(`⚠️ 시리얼 연결 안내\n\n${reason}`);
     return;
   }
 
   try {
     const baudRate = parseInt(serialBaudSelect.value, 10) || 115200;
+    logTerminal('system', `Requesting Serial Port dialog... (Baud: ${baudRate})`);
+    
     serialPort = await navigator.serial.requestPort();
+    logTerminal('system', `Opening serial port at ${baudRate} bps...`);
     await serialPort.open({ baudRate });
 
     updateSerialBadge('connected', `SERIAL: ${baudRate}bps`);
     webserialConnectBtn.style.display = 'none';
     webserialDisconnectBtn.style.display = 'block';
-    logTerminal('success', `Web Serial Port connected at ${baudRate} bps.`);
+    logTerminal('success', `✅ Web Serial Port connected successfully at ${baudRate} bps.`);
 
     keepReadingSerial = true;
     readWebSerialStream();
   } catch (err) {
+    console.error('[SERIAL] Error opening web serial:', err);
     let helpMsg = err.message;
     if (err.name === 'NotFoundError' || err.message.includes('No port selected')) {
       helpMsg = '시리얼 포트 선택이 취소되었습니다.';
+    } else if (err.name === 'SecurityError') {
+      helpMsg = '보안 제한으로 시리얼 포트 요청이 거부되었습니다. http://localhost:5005 주소로 접속하시거나 Server Serial 모드를 사용해 주세요.';
+      alert(`⚠️ 보안 제한 오류 (SecurityError)\n\n${helpMsg}`);
     } else if (err.message.includes('Failed to open') || err.message.includes('already open') || err.message.includes('Resource busy') || err.message.includes('Access denied') || err.message.includes('occupied')) {
       helpMsg = '포트를 열 수 없습니다. 아두이노 IDE의 시리얼 모니터를 닫아주세요!';
-      alert('⚠️ 시리얼 포트 연결 실패!\n아두이노 IDE의 [시리얼 모니터] 창이 열려있으면 포트가 점유되어 연결할 수 없습니다. 시리얼 모니터를 닫고 다시 시도해 주세요.');
+      alert('⚠️ 시리얼 포트 연결 실패!\n\n아두이노 IDE의 [시리얼 모니터] 창이 열려있으면 포트가 점유되어 연결할 수 없습니다. 시리얼 모니터를 닫고 다시 시도해 주세요.');
+    } else {
+      alert(`⚠️ 시리얼 연결 오류:\n${err.message}`);
     }
     logTerminal('error', `Web Serial 연결 오류: ${helpMsg}`);
     updateSerialBadge('disconnected', 'OFFLINE');
   }
 }
+
 
 
 async function readWebSerialStream() {
