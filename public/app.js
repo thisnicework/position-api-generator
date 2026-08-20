@@ -230,20 +230,24 @@ function getSmoothedValue(axis) {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-function getSmoothedRotation() {
+function getSmoothedRotation(centerRot = 10) {
   const arr = sensorHistory.rot;
   if (arr.length === 0) return 0;
-  // For circular values (0-360), use sine/cosine averaging to avoid wraparound jumps
-  let sinSum = 0, cosSum = 0;
-  arr.forEach(deg => {
-    const rad = deg * Math.PI / 180;
-    sinSum += Math.sin(rad);
-    cosSum += Math.cos(rad);
-  });
-  let avgRad = Math.atan2(sinSum / arr.length, cosSum / arr.length);
-  let avgDeg = avgRad * 180 / Math.PI;
-  return ((avgDeg % 360) + 360) % 360;
+  if (arr.length === 1) return arr[0];
+
+  // Unwrap circular difference relative to centerRot to avoid sine/cosine non-linear distortion
+  const unwrapped = arr.map(val => centerRot + getCircularDiff(val, centerRot));
+  const sorted = [...unwrapped].sort((a, b) => a - b);
+  
+  if (sorted.length >= 5) {
+    const trimmed = sorted.slice(1, sorted.length - 1);
+    const avg = trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
+    return ((avg % 360) + 360) % 360;
+  }
+  const avg = sorted.reduce((s, v) => s + v, 0) / sorted.length;
+  return ((avg % 360) + 360) % 360;
 }
+
 
 
 
@@ -709,11 +713,6 @@ function processIncomingSerialLine(line) {
     pushSensorSample('y', parsed.y);
     pushSensorSample('rot', parsed.rotation);
 
-    // --- Step 2: Get smoothed (filtered) sensor values ---
-    const smoothX = getSmoothedValue('x');
-    const smoothY = getSmoothedValue('y');
-    const smoothRot = getSmoothedRotation();
-
     // Read Min, Center, Max baseline values from inputs
     const minX = calibMinXInput ? (parseFloat(calibMinXInput.value) || 0) : 0;
     const centerX = calibXInput ? (parseFloat(calibXInput.value) || 508) : 508;
@@ -726,6 +725,11 @@ function processIncomingSerialLine(line) {
     const minRotSpan = calibMinRotInput ? (parseFloat(calibMinRotInput.value) || 25) : 25;
     const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 10) : 10;
     const maxRotSpan = calibMaxRotInput ? (parseFloat(calibMaxRotInput.value) || 25) : 25;
+
+    // --- Step 2: Get smoothed (filtered) sensor values ---
+    const smoothX = getSmoothedValue('x');
+    const smoothY = getSmoothedValue('y');
+    const smoothRot = getSmoothedRotation(centerRot);
 
     const invertX = serialInvertXCheckbox ? serialInvertXCheckbox.checked : false;
     const invertY = serialInvertYCheckbox ? serialInvertYCheckbox.checked : false;
@@ -757,12 +761,14 @@ function processIncomingSerialLine(line) {
 
     // Rotation: Piecewise deflection normalization (-1.0 ~ +1.0)
     let diffRot = getCircularDiff(smoothRot, centerRot);
+    if (invertRot) diffRot = -diffRot;
+
     if (diffRot > 0) {
       normRot = diffRot / Math.max(5, maxRotSpan);
     } else {
       normRot = diffRot / Math.max(5, minRotSpan);
     }
-    if (invertRot) normRot = -normRot;
+
 
 
     // Clamp to [-1.0, +1.0]
