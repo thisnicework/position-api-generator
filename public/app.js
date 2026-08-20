@@ -453,9 +453,10 @@ function toggleControlPanel() {
   }
   // Recalculate canvas size dynamically
   setTimeout(() => {
-    handleResize();
+    resizeCanvas();
   }, 50);
 }
+
 
 if (toggleMenuHint) {
   toggleMenuHint.addEventListener('click', toggleControlPanel);
@@ -1306,9 +1307,14 @@ function resizeCanvas() {
   const rect = canvas.parentElement.getBoundingClientRect();
   canvas.width = rect.width;
   canvas.height = rect.height;
+  if (glCanvas) {
+    glCanvas.width = rect.width;
+    glCanvas.height = rect.height;
+  }
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
+
 
 // Set initial telemetry values
 telX.textContent = '2500.0';
