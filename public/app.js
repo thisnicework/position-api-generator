@@ -322,6 +322,18 @@ intervalSlider.addEventListener('input', (e) => {
   }
 });
 
+const monitorDelaySlider = document.getElementById('monitor-delay');
+const monitorDelayVal = document.getElementById('monitor-delay-val');
+let monitorDelayMs = 500;
+
+if (monitorDelaySlider && monitorDelayVal) {
+  monitorDelaySlider.addEventListener('input', (e) => {
+    monitorDelayMs = parseInt(e.target.value, 10);
+    const sec = (monitorDelayMs / 1000).toFixed(1);
+    monitorDelayVal.textContent = `${monitorDelayMs} ms (${sec}s)`;
+  });
+}
+
 const joystickSpeedSlider = document.getElementById('joystick-speed-slider');
 const speedSliderValSpan = document.getElementById('speed-slider-val');
 
@@ -331,6 +343,7 @@ if (joystickSpeedSlider && speedSliderValSpan) {
     speedSliderValSpan.textContent = `${mult.toFixed(1)}x`;
   });
 }
+
 
 
 clearTerminalBtn.addEventListener('click', () => {
@@ -1065,8 +1078,10 @@ function transmitState() {
     y: currentY,
     rotation: currentRotation,
     action: currentAction,
+    monitorDelay: monitorDelayMs,
     timestamp: Date.now()
   };
+
 
   fetch(apiEndpoint, {
     method: 'POST',

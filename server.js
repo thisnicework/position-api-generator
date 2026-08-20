@@ -14,40 +14,63 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Store latest state in server memory
 let latestState = { x: 2500, y: 2500, rotation: 0, action: 4, timestamp: 0, method: 'none' };
 
+let defaultMonitorDelayMs = 500; // Default 0.5s delay between sequential monitors
+let autoMonitorIndexCounter = 0;
+
 // Create HTTP server
 const server = http.createServer(app);
 
 // Create WebSocket server attached to HTTP server
 const wss = new WebSocket.Server({ noServer: true });
 
-// Broadcast function to send data to all connected WebSocket clients (like TouchDesigner)
-function broadcast(data) {
+// Scheduled Broadcast function: sends absolute execution timestamp (executeAt) for sequential monitors
+function broadcastScheduled(stateData, monitorDelayMs) {
+  const baseTime = Date.now();
+  const stepDelay = typeof monitorDelayMs === 'number' ? monitorDelayMs : defaultMonitorDelayMs;
+
+  let index = 0;
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(data));
+      // Use client's registered monitorIndex or fall back to client sequence
+      const monitorIndex = typeof client.monitorIndex === 'number' ? client.monitorIndex : index;
+      const executeAt = baseTime + (monitorIndex * stepDelay);
+
+      const scheduledPayload = {
+        type: 'scheduled_state',
+        monitorIndex: monitorIndex,
+        executeAt: executeAt,
+        delayMs: stepDelay,
+        ...stateData
+      };
+
+      client.send(JSON.stringify(scheduledPayload));
+      index++;
     }
   });
 }
 
 // HTTP POST endpoint for state updates
 app.post('/api/state', (req, res) => {
-  const { x, y, rotation, action, timestamp } = req.body;
+  const { x, y, rotation, action, timestamp, monitorDelay } = req.body;
   
   if (typeof x !== 'number' || typeof y !== 'number' || typeof rotation !== 'number') {
     return res.status(400).json({ error: 'Invalid state format. Require x, y, rotation numbers.' });
   }
 
   const actionCode = typeof action === 'number' ? action : 4;
-  latestState = { x, y, rotation, action: actionCode, timestamp, method: 'HTTP POST' };
+  if (typeof monitorDelay === 'number') {
+    defaultMonitorDelayMs = monitorDelay;
+  }
 
-  
+  latestState = { x, y, rotation, action: actionCode, timestamp: timestamp || Date.now(), method: 'HTTP POST' };
+
   // Log receipt in a formatted way
   logState('HTTP', latestState);
   
-  // Broadcast to all WebSocket clients (TouchDesigner)
-  broadcast({ type: 'state', ...latestState });
+  // Broadcast with absolute timestamps to all WebSocket monitors (TouchDesigner)
+  broadcastScheduled(latestState, defaultMonitorDelayMs);
   
-  res.json({ status: 'ok', received: latestState });
+  res.json({ status: 'ok', received: latestState, monitorDelay: defaultMonitorDelayMs });
 });
 
 // HTTP GET endpoint to retrieve the latest state
@@ -66,34 +89,59 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 wss.on('connection', (ws) => {
-  console.log('\x1b[36m[WS] Client connected\x1b[0m');
+  // Assign default sequential monitor index
+  ws.monitorIndex = autoMonitorIndexCounter++;
+  console.log(`\x1b[36m[WS] Client connected (Assigned Monitor Index: ${ws.monitorIndex})\x1b[0m`);
   
   // Send latest state to newly connected client (TouchDesigner) immediately
-  ws.send(JSON.stringify({ type: 'state', ...latestState }));
+  const initialExecuteAt = Date.now() + (ws.monitorIndex * defaultMonitorDelayMs);
+  ws.send(JSON.stringify({
+    type: 'scheduled_state',
+    monitorIndex: ws.monitorIndex,
+    executeAt: initialExecuteAt,
+    delayMs: defaultMonitorDelayMs,
+    ...latestState
+  }));
   
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message);
-      const { x, y, rotation, action, timestamp } = data;
+
+      // Handle client registration / monitor index override
+      if (data.type === 'register') {
+        if (typeof data.monitorIndex === 'number') {
+          ws.monitorIndex = data.monitorIndex;
+          console.log(`\x1b[32m[WS] Client updated Monitor Index to ${ws.monitorIndex}\x1b[0m`);
+          ws.send(JSON.stringify({ status: 'registered', monitorIndex: ws.monitorIndex }));
+        }
+        return;
+      }
+      
+      const { x, y, rotation, action, timestamp, monitorDelay } = data;
       
       const actionCode = typeof action === 'number' ? action : 4;
-      latestState = { x, y, rotation, action: actionCode, timestamp, method: 'WebSocket' };
+      if (typeof monitorDelay === 'number') {
+        defaultMonitorDelayMs = monitorDelay;
+      }
+
+      latestState = { x, y, rotation, action: actionCode, timestamp: timestamp || Date.now(), method: 'WebSocket' };
       logState('WS', latestState);
       
-      // Broadcast state to all other connected clients
-      broadcast({ type: 'state', ...latestState });
+      // Broadcast scheduled state to all connected clients
+      broadcastScheduled(latestState, defaultMonitorDelayMs);
       
       // Echo back acknowledgment to sender
-      ws.send(JSON.stringify({ status: 'ack', timestamp }));
+      ws.send(JSON.stringify({ status: 'ack', timestamp: latestState.timestamp }));
     } catch (err) {
       ws.send(JSON.stringify({ error: 'Invalid JSON format' }));
     }
   });
 
   ws.on('close', () => {
-    console.log('\x1b[31m[WS] Client disconnected\x1b[0m');
+    console.log(`\x1b[31m[WS] Client disconnected (Monitor Index was: ${ws.monitorIndex})\x1b[0m`);
   });
 });
+
 
 // Helper function to print values with nice formatting in console
 function logState(type, state) {
@@ -240,7 +288,8 @@ app.post('/api/serial/connect', (req, res) => {
       if (parsed) {
         latestState = parsed;
         logState('SERIAL', latestState);
-        broadcast({ type: 'state', ...latestState });
+        broadcastScheduled(latestState, defaultMonitorDelayMs);
+
       }
     });
 
