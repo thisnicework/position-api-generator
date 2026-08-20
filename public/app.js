@@ -441,19 +441,19 @@ function processIncomingSerialLine(line) {
     let normY = 0;
     let normRot = 0;
 
-    // 1. Calculate X displacement relative to resting zero-point (Full natural analog span)
+    // 1. Calculate X displacement relative to resting zero-point (Sensitive 30-unit span for equal -X/+X)
     const diffX = parsed.x - centerX;
-    normX = diffX > 0 ? (diffX / Math.max(50, 1023 - centerX)) : (diffX / Math.max(50, centerX));
+    normX = diffX / 30.0;
     if (invertX) normX = -normX;
 
-    // 2. Calculate Y displacement relative to resting zero-point (Full natural analog span)
+    // 2. Calculate Y displacement relative to resting zero-point (Sensitive 30-unit span)
     const diffY = parsed.y - centerY;
-    normY = diffY > 0 ? (diffY / Math.max(50, 1023 - centerY)) : (diffY / Math.max(50, centerY));
+    normY = diffY / 30.0;
     if (invertY) normY = -normY;
 
-    // 3. Calculate Rotation displacement (Full 180° knob/joystick physical span)
+    // 3. Calculate Rotation displacement (Sensitive 10° knob tilt span for responsive CW & CCW rotation!)
     let diffRot = getCircularDiff(parsed.rotation, centerRot);
-    normRot = diffRot / 180.0;
+    normRot = diffRot / 10.0;
     if (invertRot) normRot = -normRot;
 
 
@@ -462,11 +462,12 @@ function processIncomingSerialLine(line) {
     normY = Math.max(-1.0, Math.min(1.0, normY));
     normRot = Math.max(-1.0, Math.min(1.0, normRot));
 
-    // Deadzone Filter (8% deadzone for natural, stable control without jitter)
-    const DEADZONE = 0.08;
+    // Deadzone Filter (1.5% deadzone so small signals are not killed)
+    const DEADZONE = 0.015;
     if (Math.abs(normX) < DEADZONE) normX = 0;
     if (Math.abs(normY) < DEADZONE) normY = 0;
     if (Math.abs(normRot) < DEADZONE) normRot = 0;
+
 
     const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 2.0) : 2.0;
 
