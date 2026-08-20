@@ -40,9 +40,19 @@ const serialRawValSpan = document.getElementById('serial-raw-val');
 const calibXInput = document.getElementById('calib-x');
 const calibYInput = document.getElementById('calib-y');
 const calibRotInput = document.getElementById('calib-rot');
-const autoCalibrateBtn = document.getElementById('auto-calibrate-btn');
+const calibStatusTag = document.getElementById('calib-status-tag');
+const start3sCalibBtn = document.getElementById('start-3s-calib-btn');
+const quickCalibBtn = document.getElementById('quick-calib-btn');
+const calibProgressContainer = document.getElementById('calib-progress-container');
+const calibProgressBar = document.getElementById('calib-progress-bar');
+const calibProgressText = document.getElementById('calib-progress-text');
 
 let lastRawSerialValues = { x: 508, y: 179, rot: 10 };
+let isCalibrating = false;
+let calibSamples = [];
+let calibStartTime = 0;
+const CALIB_DURATION = 3000;
+
 
 
 
@@ -348,7 +358,23 @@ function processIncomingSerialLine(line) {
   // Save last raw parsed values for auto-calibration button
   lastRawSerialValues = { x: parsed.x, y: parsed.y, rot: parsed.rotation };
 
+  // Collect 3-sec calibration sample if active
+  if (isCalibrating) {
+    const now = Date.now();
+    calibSamples.push({ x: parsed.x, y: parsed.y, rot: parsed.rotation });
+    const elapsed = now - calibStartTime;
+    const progress = Math.min(100, Math.round((elapsed / CALIB_DURATION) * 100));
+
+    if (calibProgressBar) calibProgressBar.style.width = `${progress}%`;
+    if (calibProgressText) calibProgressText.textContent = `Collecting zero-point samples (${progress}%)...`;
+
+    if (elapsed >= CALIB_DURATION) {
+      finish3sCalibration();
+    }
+  }
+
   const mode = serialControlTypeSelect ? serialControlTypeSelect.value : 'joystick';
+
 
   if (mode === 'joystick') {
     // 🎮 Joystick Game Movement Mode (게임 방식: 조이스틱 기울임 -> 이동 속도)
@@ -651,14 +677,98 @@ if (refreshPortsBtn) refreshPortsBtn.addEventListener('click', fetchServerSerial
 if (nodeConnectBtn) nodeConnectBtn.addEventListener('click', connectNodeSerial);
 if (nodeDisconnectBtn) nodeDisconnectBtn.addEventListener('click', disconnectNodeSerial);
 
-if (autoCalibrateBtn) {
-  autoCalibrateBtn.addEventListener('click', () => {
+function start3sCalibration() {
+  isCalibrating = true;
+  calibSamples = [];
+  calibStartTime = Date.now();
+
+  if (calibStatusTag) {
+    calibStatusTag.textContent = 'CALIBRATING...';
+    calibStatusTag.style.background = '#fff3e0';
+    calibStatusTag.style.color = '#e65100';
+    calibStatusTag.style.borderColor = '#ffe0b2';
+  }
+
+  if (calibProgressContainer) calibProgressContainer.style.display = 'block';
+  if (calibProgressBar) calibProgressBar.style.width = '0%';
+  if (calibProgressText) calibProgressText.textContent = 'Keep joystick centered... (0%)';
+  if (start3sCalibBtn) {
+    start3sCalibBtn.disabled = true;
+    start3sCalibBtn.textContent = 'Sampling...';
+  }
+
+  logTerminal('system', 'Started 3-second zero-point calibration. Please release joystick.');
+}
+
+function finish3sCalibration() {
+  isCalibrating = false;
+  if (calibSamples.length === 0) return;
+
+  let sumX = 0, sumY = 0, sumRot = 0;
+  calibSamples.forEach(s => {
+    sumX += s.x;
+    sumY += s.y;
+    sumRot += s.rot;
+  });
+
+  const avgX = Math.round(sumX / calibSamples.length);
+  const avgY = Math.round(sumY / calibSamples.length);
+  const avgRot = Math.round(sumRot / calibSamples.length);
+
+  if (calibXInput) calibXInput.value = avgX;
+  if (calibYInput) calibYInput.value = avgY;
+  if (calibRotInput) calibRotInput.value = avgRot;
+
+  localStorage.setItem('5hz_calib_x', avgX);
+  localStorage.setItem('5hz_calib_y', avgY);
+  localStorage.setItem('5hz_calib_rot', avgRot);
+
+  if (calibStatusTag) {
+    calibStatusTag.textContent = 'DONE';
+    calibStatusTag.style.background = '#e8f5e9';
+    calibStatusTag.style.color = '#2e7d32';
+    calibStatusTag.style.borderColor = '#c8e6c9';
+  }
+
+  if (calibProgressContainer) calibProgressContainer.style.display = 'none';
+  if (start3sCalibBtn) {
+    start3sCalibBtn.disabled = false;
+    start3sCalibBtn.textContent = '⏱️ 3-Sec Auto Calibrate';
+  }
+
+  logTerminal('success', `✅ 3-Sec Calibration Complete! Baseline: X:${avgX}, Y:${avgY}, Rot:${avgRot} (${calibSamples.length} samples)`);
+}
+
+function loadSavedCalibration() {
+  const savedX = localStorage.getItem('5hz_calib_x');
+  const savedY = localStorage.getItem('5hz_calib_y');
+  const savedRot = localStorage.getItem('5hz_calib_rot');
+
+  if (savedX && calibXInput) calibXInput.value = savedX;
+  if (savedY && calibYInput) calibYInput.value = savedY;
+  if (savedRot && calibRotInput) calibRotInput.value = savedRot;
+}
+
+if (start3sCalibBtn) {
+  start3sCalibBtn.addEventListener('click', () => {
+    start3sCalibration();
+  });
+}
+
+if (quickCalibBtn) {
+  quickCalibBtn.addEventListener('click', () => {
     if (calibXInput) calibXInput.value = Math.round(lastRawSerialValues.x);
     if (calibYInput) calibYInput.value = Math.round(lastRawSerialValues.y);
     if (calibRotInput) calibRotInput.value = Math.round(lastRawSerialValues.rot);
-    logTerminal('success', `Calibrated Zero-Point to X:${Math.round(lastRawSerialValues.x)}, Y:${Math.round(lastRawSerialValues.y)}, Rot:${Math.round(lastRawSerialValues.rot)}`);
+    localStorage.setItem('5hz_calib_x', Math.round(lastRawSerialValues.x));
+    localStorage.setItem('5hz_calib_y', Math.round(lastRawSerialValues.y));
+    localStorage.setItem('5hz_calib_rot', Math.round(lastRawSerialValues.rot));
+    logTerminal('success', `Instant Calibration set to X:${Math.round(lastRawSerialValues.x)}, Y:${Math.round(lastRawSerialValues.y)}, Rot:${Math.round(lastRawSerialValues.rot)}`);
   });
 }
+
+loadSavedCalibration();
+
 
 if (serialOrderSelect) {
   serialOrderSelect.addEventListener('change', (e) => {
