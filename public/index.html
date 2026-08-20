@@ -23,8 +23,10 @@
         <h1>API Controller</h1>
       </div>
       <div class="system-status">
-        <span class="status-label">Network Status:</span>
+        <span class="status-label">Network:</span>
         <span id="connection-badge" class="badge badge-disconnected">OFFLINE</span>
+        <span class="status-label" style="margin-left: 8px;">Serial:</span>
+        <span id="serial-badge" class="badge badge-disconnected">OFFLINE</span>
       </div>
     </header>
 
@@ -47,6 +49,67 @@
             </div>
           </div>
           <button id="connect-btn" class="btn btn-primary">Connect / Apply</button>
+        </section>
+
+        <!-- Serial Input Control Section -->
+        <section class="panel-section serial-section">
+          <h2>Serial Input Control (시리얼 입력)</h2>
+          <div class="form-group">
+            <label for="serial-mode">Serial Source Mode</label>
+            <select id="serial-mode">
+              <option value="webserial" selected>Web Serial (Browser Direct)</option>
+              <option value="nodeserial">Server Serial (Node.js API)</option>
+            </select>
+          </div>
+
+          <div id="webserial-controls">
+            <div class="form-group">
+              <label for="serial-baud">Baud Rate</label>
+              <select id="serial-baud">
+                <option value="9600">9600 bps</option>
+                <option value="19200">19200 bps</option>
+                <option value="38400">38400 bps</option>
+                <option value="57600">57600 bps</option>
+                <option value="115200" selected>115200 bps</option>
+              </select>
+            </div>
+            <button id="webserial-connect-btn" class="btn btn-primary">Connect Serial Port</button>
+            <button id="webserial-disconnect-btn" class="btn btn-danger" style="display: none; margin-top: 6px;">Disconnect Serial</button>
+          </div>
+
+          <div id="nodeserial-controls" style="display: none;">
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label for="node-port-select">Server COM/TTY Port</label>
+                <button id="refresh-ports-btn" class="btn btn-text" style="padding: 0 4px;">Refresh</button>
+              </div>
+              <select id="node-port-select">
+                <option value="">-- Select Port --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="node-serial-baud">Baud Rate</label>
+              <select id="node-serial-baud">
+                <option value="9600">9600 bps</option>
+                <option value="19200">19200 bps</option>
+                <option value="38400">38400 bps</option>
+                <option value="57600">57600 bps</option>
+                <option value="115200" selected>115200 bps</option>
+              </select>
+            </div>
+            <button id="node-connect-btn" class="btn btn-primary">Connect Server Port</button>
+            <button id="node-disconnect-btn" class="btn btn-danger" style="display: none; margin-top: 6px;">Disconnect Server Port</button>
+          </div>
+
+          <div class="serial-options" style="margin-top: 10px; border-top: 1px dashed #e0e0e0; padding-top: 8px;">
+            <div class="checkbox-group" style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted);">
+              <input type="checkbox" id="serial-analog-map">
+              <label for="serial-analog-map" style="margin:0; font-weight: normal; cursor: pointer;">Map Analog ADC (0~1023 -> 0~5000)</label>
+            </div>
+            <div class="serial-raw-display" style="margin-top: 6px; font-family: 'Fira Code', monospace; font-size: 10px; color: #0072bd; background: #f0f7ff; padding: 4px 6px; border-radius: 3px; border: 1px solid #cce0f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              RAW: <span id="serial-raw-val">Awaiting Serial Data...</span>
+            </div>
+          </div>
         </section>
 
         <!-- Live Telemetry Section -->
@@ -78,26 +141,34 @@
 
         <!-- Instruction Section -->
         <section class="panel-section instructions">
-          <h2>Controls</h2>
+          <h2>Controls & Serial Formats</h2>
           <div class="keyboard-guide">
             <div class="guide-row">
               <span class="key-cap">▲</span>
               <span class="key-cap">▼</span>
               <span class="key-cap">◀</span>
               <span class="key-cap">▶</span>
-              <span class="guide-desc">Move Dot</span>
+              <span class="guide-desc">Keyboard Move</span>
             </div>
             <div class="guide-row">
               <span class="key-cap">Q</span>
-              <span class="guide-desc">Rotate CCW (Left)</span>
-            </div>
-            <div class="guide-row">
               <span class="key-cap">E</span>
-              <span class="guide-desc">Rotate CW (Right)</span>
+              <span class="guide-desc">Rotate CCW / CW</span>
+            </div>
+            <div class="guide-row" style="margin-top: 4px; border-top: 1px solid #f0f0f0; padding-top: 4px;">
+              <span class="guide-desc" style="font-weight: bold; color: #333;">Serial Input Formats:</span>
             </div>
             <div class="guide-row">
-              <span class="key-cap font-sm">Space</span>
-              <span class="guide-desc">Slow</span>
+              <span class="key-cap font-sm">CSV</span>
+              <span class="guide-desc"><code>2500, 2500, 90</code></span>
+            </div>
+            <div class="guide-row">
+              <span class="key-cap font-sm">Tag</span>
+              <span class="guide-desc"><code>X:2500 Y:2500 R:90</code></span>
+            </div>
+            <div class="guide-row">
+              <span class="key-cap font-sm">JSON</span>
+              <span class="guide-desc"><code>{"x":2500,"y":2500,"rotation":90}</code></span>
             </div>
           </div>
         </section>

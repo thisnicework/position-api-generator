@@ -435,3 +435,29 @@ body {
 .send-log { color: #005f9e; } /* Scientific Blue text */
 .success-log { color: #3e6b12; }
 .error-log { color: #a2142f; }
+.serial-log { color: #7e2f8e; } /* Purple text for Serial input */
+
+.btn-danger {
+  background-color: #fce4e4;
+  color: var(--accent-red);
+  border-color: #f5c2c2;
+}
+
+.btn-danger:hover {
+  background-color: #f7d0d0;
+  border-color: #e59999;
+}
+
+.btn-danger:active {
+  background-color: #f2b8b8;
+}
+
+code {
+  font-family: 'Fira Code', monospace;
+  background: #f0f4f8;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: #005f9e;
+}
+

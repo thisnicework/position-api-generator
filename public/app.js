@@ -16,6 +16,25 @@ const telR = document.getElementById('tel-r');
 const telD = document.getElementById('tel-d');
 const telA = document.getElementById('tel-a');
 
+// Serial Input DOM Elements
+const serialBadge = document.getElementById('serial-badge');
+const serialModeSelect = document.getElementById('serial-mode');
+const webserialControls = document.getElementById('webserial-controls');
+const serialBaudSelect = document.getElementById('serial-baud');
+const webserialConnectBtn = document.getElementById('webserial-connect-btn');
+const webserialDisconnectBtn = document.getElementById('webserial-disconnect-btn');
+
+const nodeserialControls = document.getElementById('nodeserial-controls');
+const refreshPortsBtn = document.getElementById('refresh-ports-btn');
+const nodePortSelect = document.getElementById('node-port-select');
+const nodeSerialBaudSelect = document.getElementById('node-serial-baud');
+const nodeConnectBtn = document.getElementById('node-connect-btn');
+const nodeDisconnectBtn = document.getElementById('node-disconnect-btn');
+
+const serialAnalogMapCheckbox = document.getElementById('serial-analog-map');
+const serialRawValSpan = document.getElementById('serial-raw-val');
+
+
 // --- Physics State & Variables ---
 const state = {
   x: 2500,       // Start in the center of the 0..5000 grid
@@ -214,6 +233,321 @@ connectBtn.addEventListener('click', () => {
 clearTerminalBtn.addEventListener('click', () => {
   terminalBody.innerHTML = '';
 });
+
+// --- Serial Communication State ---
+let serialPort = null;
+let serialReader = null;
+let keepReadingSerial = false;
+let nodeSerialStatusInterval = null;
+
+// --- Serial Data Parser ---
+function parseSerialString(rawText) {
+  const trimmed = rawText.trim();
+  if (!trimmed) return null;
+
+  let x = null, y = null, rotation = null, action = null;
+
+  // 1. JSON Format: {"x":2500, "y":2500, "rotation":90}
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const obj = JSON.parse(trimmed);
+      if (typeof obj.x === 'number') x = obj.x;
+      if (typeof obj.y === 'number') y = obj.y;
+      if (typeof obj.rotation === 'number') rotation = obj.rotation;
+      else if (typeof obj.r === 'number') rotation = obj.r;
+      else if (typeof obj.deg === 'number') rotation = obj.deg;
+      if (typeof obj.action === 'number') action = obj.action;
+      else if (typeof obj.a === 'number') action = obj.a;
+    } catch (e) {}
+  }
+
+  // 2. Tagged Format: X:2500 Y:2500 R:90 or X=2500, Y=2500, R=90
+  if (x === null || y === null || rotation === null) {
+    const xMatch = trimmed.match(/(?:x|posx|x_val)[:=]\s*(-?\d+(?:\.\d+)?)/i);
+    const yMatch = trimmed.match(/(?:y|posy|y_val)[:=]\s*(-?\d+(?:\.\d+)?)/i);
+    const rMatch = trimmed.match(/(?:r|rot|deg|angle|rotation)[:=]\s*(-?\d+(?:\.\d+)?)/i);
+    const aMatch = trimmed.match(/(?:a|act|action)[:=]\s*(\d+)/i);
+
+    if (xMatch) x = parseFloat(xMatch[1]);
+    if (yMatch) y = parseFloat(yMatch[1]);
+    if (rMatch) rotation = parseFloat(rMatch[1]);
+    if (aMatch) action = parseInt(aMatch[1], 10);
+  }
+
+  // 3. CSV Format: 2500, 2500, 90 or 2500,2500,90,3
+  if (x === null || y === null || rotation === null) {
+    const parts = trimmed.split(/[\s,]+/).filter(Boolean);
+    if (parts.length >= 3) {
+      const pX = parseFloat(parts[0]);
+      const pY = parseFloat(parts[1]);
+      const pR = parseFloat(parts[2]);
+      if (!isNaN(pX) && !isNaN(pY) && !isNaN(pR)) {
+        x = pX;
+        y = pY;
+        rotation = pR;
+        if (parts.length >= 4 && !isNaN(parseInt(parts[3]))) {
+          action = parseInt(parts[3], 10);
+        }
+      }
+    }
+  }
+
+  if (x !== null && y !== null && rotation !== null) {
+    // Optional Analog ADC (0~1023) mapping
+    if (serialAnalogMapCheckbox && serialAnalogMapCheckbox.checked) {
+      if (x <= 1023 && y <= 1023) {
+        x = (x / 1023) * 5000;
+        y = (y / 1023) * 5000;
+      }
+      if (rotation <= 1023 && rotation > 360) {
+        rotation = (rotation / 1023) * 360;
+      }
+    }
+
+    x = Math.max(0, Math.min(5000, x));
+    y = Math.max(0, Math.min(5000, y));
+    rotation = ((rotation % 360) + 360) % 360;
+
+    return { x, y, rotation, action };
+  }
+
+  return null;
+}
+
+function processIncomingSerialLine(line) {
+  if (serialRawValSpan) {
+    serialRawValSpan.textContent = line.length > 40 ? line.slice(0, 40) + '...' : line;
+  }
+
+  const parsed = parseSerialString(line);
+  if (parsed) {
+    state.x = parsed.x;
+    state.y = parsed.y;
+    state.rotation = parsed.rotation;
+    state.vx = 0;
+    state.vy = 0;
+    state.vRotation = 0;
+    if (parsed.action !== null) {
+      state.action = parsed.action;
+    }
+
+    logSerialRX(parsed);
+  }
+}
+
+function logSerialRX(parsed) {
+  const line = document.createElement('div');
+  line.className = 'log-line serial-log';
+  line.textContent = `>> serial_rx: (X:${parsed.x.toFixed(1)}, Y:${parsed.y.toFixed(1)}, R:${Math.round(parsed.rotation)}°)`;
+  terminalBody.appendChild(line);
+  terminalBody.scrollTop = terminalBody.scrollHeight;
+  if (terminalBody.childElementCount > 30) {
+    terminalBody.removeChild(terminalBody.firstChild);
+  }
+}
+
+// --- Web Serial API Connection ---
+async function connectWebSerial() {
+  if (!('serial' in navigator)) {
+    logTerminal('error', 'Web Serial API is not supported in this browser. Please use Chrome/Edge or Server Serial.');
+    alert('Web Serial API is not supported in this browser. Please use Chrome or Edge.');
+    return;
+  }
+
+  try {
+    const baudRate = parseInt(serialBaudSelect.value, 10) || 115200;
+    serialPort = await navigator.serial.requestPort();
+    await serialPort.open({ baudRate });
+
+    updateSerialBadge('connected', `SERIAL: ${baudRate}bps`);
+    webserialConnectBtn.style.display = 'none';
+    webserialDisconnectBtn.style.display = 'block';
+    logTerminal('success', `Web Serial Port connected at ${baudRate} bps.`);
+
+    keepReadingSerial = true;
+    readWebSerialStream();
+  } catch (err) {
+    logTerminal('error', `Web Serial connect error: ${err.message}`);
+    updateSerialBadge('disconnected', 'OFFLINE');
+  }
+}
+
+async function readWebSerialStream() {
+  let textBuffer = '';
+  const textDecoder = new TextDecoderStream();
+  const readableStreamClosed = serialPort.readable.pipeTo(textDecoder.writable);
+  const reader = textDecoder.readable.getReader();
+  serialReader = reader;
+
+  try {
+    while (keepReadingSerial) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) {
+        textBuffer += value;
+        const lines = textBuffer.split(/\r?\n/);
+        textBuffer = lines.pop(); // Keep partial line in buffer
+
+        for (const line of lines) {
+          processIncomingSerialLine(line);
+        }
+      }
+    }
+  } catch (err) {
+    if (keepReadingSerial) {
+      logTerminal('error', `Serial Read Error: ${err.message}`);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+async function disconnectWebSerial() {
+  keepReadingSerial = false;
+  if (serialReader) {
+    try { await serialReader.cancel(); } catch (e) {}
+    serialReader = null;
+  }
+  if (serialPort) {
+    try { await serialPort.close(); } catch (e) {}
+    serialPort = null;
+  }
+  updateSerialBadge('disconnected', 'OFFLINE');
+  webserialConnectBtn.style.display = 'block';
+  webserialDisconnectBtn.style.display = 'none';
+  logTerminal('system', 'Web Serial Port disconnected.');
+}
+
+function updateSerialBadge(stateClass, label) {
+  if (serialBadge) {
+    serialBadge.className = `badge badge-${stateClass}`;
+    serialBadge.textContent = label;
+  }
+}
+
+// --- Server Serial API Connection ---
+async function fetchServerSerialPorts() {
+  try {
+    const res = await fetch(`${currentOrigin}/api/serial/ports`);
+    if (!res.ok) throw new Error('Server serialport endpoint not available');
+    const data = await res.json();
+    
+    nodePortSelect.innerHTML = '<option value="">-- Select Port --</option>';
+    if (data.ports && data.ports.length > 0) {
+      data.ports.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.path;
+        opt.textContent = `${p.path} ${p.manufacturer ? '(' + p.manufacturer + ')' : ''}`;
+        nodePortSelect.appendChild(opt);
+      });
+      logTerminal('system', `Found ${data.ports.length} server serial port(s).`);
+    } else {
+      const opt = document.createElement('option');
+      opt.value = "";
+      opt.textContent = "No serial ports found on server";
+      nodePortSelect.appendChild(opt);
+    }
+  } catch (err) {
+    logTerminal('error', `Server serial check: ${err.message}`);
+  }
+}
+
+async function connectNodeSerial() {
+  const portPath = nodePortSelect.value;
+  const baudRate = parseInt(nodeSerialBaudSelect.value, 10) || 115200;
+
+  if (!portPath) {
+    alert('Please select a Server Serial Port first.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${currentOrigin}/api/serial/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: portPath, baudRate })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      updateSerialBadge('connected', `SRV SERIAL: ${baudRate}bps`);
+      nodeConnectBtn.style.display = 'none';
+      nodeDisconnectBtn.style.display = 'block';
+      logTerminal('success', `Connected server serial port ${portPath} at ${baudRate} bps.`);
+
+      startNodeSerialPolling();
+    } else {
+      throw new Error(data.error || 'Failed to connect');
+    }
+  } catch (err) {
+    logTerminal('error', `Server serial connect error: ${err.message}`);
+  }
+}
+
+async function disconnectNodeSerial() {
+  stopNodeSerialPolling();
+  try {
+    await fetch(`${currentOrigin}/api/serial/disconnect`, { method: 'POST' });
+    updateSerialBadge('disconnected', 'OFFLINE');
+    nodeConnectBtn.style.display = 'block';
+    nodeDisconnectBtn.style.display = 'none';
+    logTerminal('system', 'Server serial port disconnected.');
+  } catch (err) {
+    logTerminal('error', `Server serial disconnect error: ${err.message}`);
+  }
+}
+
+function startNodeSerialPolling() {
+  stopNodeSerialPolling();
+  nodeSerialStatusInterval = setInterval(async () => {
+    try {
+      const res = await fetch(`${currentOrigin}/api/state`);
+      if (res.ok) {
+        const latest = await res.json();
+        if (latest.method === 'SerialPort') {
+          state.x = latest.x;
+          state.y = latest.y;
+          state.rotation = latest.rotation;
+          state.vx = 0;
+          state.vy = 0;
+          state.vRotation = 0;
+          if (latest.action !== undefined) state.action = latest.action;
+          if (serialRawValSpan) {
+            serialRawValSpan.textContent = `X:${latest.x.toFixed(1)} Y:${latest.y.toFixed(1)} R:${latest.rotation.toFixed(0)}°`;
+          }
+        }
+      }
+    } catch (e) {}
+  }, 100);
+}
+
+function stopNodeSerialPolling() {
+  if (nodeSerialStatusInterval) {
+    clearInterval(nodeSerialStatusInterval);
+    nodeSerialStatusInterval = null;
+  }
+}
+
+// Mode Selector Change Handler
+if (serialModeSelect) {
+  serialModeSelect.addEventListener('change', (e) => {
+    if (e.target.value === 'webserial') {
+      webserialControls.style.display = 'block';
+      nodeserialControls.style.display = 'none';
+    } else {
+      webserialControls.style.display = 'none';
+      nodeserialControls.style.display = 'block';
+      fetchServerSerialPorts();
+    }
+  });
+}
+
+if (webserialConnectBtn) webserialConnectBtn.addEventListener('click', connectWebSerial);
+if (webserialDisconnectBtn) webserialDisconnectBtn.addEventListener('click', disconnectWebSerial);
+if (refreshPortsBtn) refreshPortsBtn.addEventListener('click', fetchServerSerialPorts);
+if (nodeConnectBtn) nodeConnectBtn.addEventListener('click', connectNodeSerial);
+if (nodeDisconnectBtn) nodeDisconnectBtn.addEventListener('click', disconnectNodeSerial);
+
 
 function setupConnection() {
   // Clean up existing loops/connections
