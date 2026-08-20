@@ -356,11 +356,16 @@ function parseSerialString(rawText) {
   return null;
 }
 
-function processIncomingSerialLine(line) {
-  if (serialRawValSpan) {
-    serialRawValSpan.textContent = line.length > 40 ? line.slice(0, 40) + '...' : line;
-  }
+// Helper to calculate circular / 360-degree angle difference in [-180, +180] range
+function getCircularDiff(val, center) {
+  let diff = val - center;
+  while (diff > 180) diff -= 360;
+  while (diff < -180) diff += 360;
+  return diff;
+}
 
+
+function processIncomingSerialLine(line) {
   const parsed = parseSerialString(line);
   if (!parsed) return;
 
@@ -384,9 +389,8 @@ function processIncomingSerialLine(line) {
 
   const mode = serialControlTypeSelect ? serialControlTypeSelect.value : 'joystick';
 
-
   if (mode === 'joystick') {
-    // 🎮 Joystick Game Movement Mode (게임 방식: 조이스틱 기울임 -> 이동 속도)
+    // 🎮 Joystick Game Movement Mode (게임 방식: 조이스틱 기울임 -> 이동 속도 및 연속 회전)
     
     // Read zero-point baseline from inputs (Default: Center X=508, Y=179, Rot=10)
     const centerX = calibXInput ? (parseFloat(calibXInput.value) || 508) : 508;
@@ -409,24 +413,33 @@ function processIncomingSerialLine(line) {
     }
 
     // 2. Calculate Y displacement relative to resting zero-point (-1.0 ~ +1.0)
-    const diffY = parsed.y - centerY;
-    if (diffY > 0) {
-      normY = diffY / Math.max(1, (1023 - centerY));
+    let diffY = parsed.y - centerY;
+    if (parsed.y >= 0 && parsed.y <= 360) {
+      diffY = getCircularDiff(parsed.y, centerY);
+      normY = diffY / 180.0;
     } else {
-      normY = diffY / Math.max(1, centerY);
+      if (diffY > 0) {
+        normY = diffY / Math.max(1, (1023 - centerY));
+      } else {
+        normY = diffY / Math.max(1, centerY);
+      }
     }
-
     if (invertY) normY = -normY;
 
-    // 3. Calculate Rotation displacement relative to resting zero-point (Game Joystick Rotation!)
-    const diffRot = parsed.rotation - centerRot;
-    if (diffRot > 0) {
-      normRot = diffRot / Math.max(1, (1023 - centerRot));
+    // 3. Calculate Rotation displacement using 360° Wraparound Math! (Game Joystick Rotation)
+    let diffRot = getCircularDiff(parsed.rotation, centerRot);
+    if (parsed.rotation > 360 || parsed.rotation < 0) {
+      diffRot = parsed.rotation - centerRot;
+      normRot = diffRot > 0 ? (diffRot / Math.max(1, 1023 - centerRot)) : (diffRot / Math.max(1, centerRot));
     } else {
-      normRot = diffRot / Math.max(1, centerRot);
+      normRot = diffRot / 180.0;
     }
-
     if (invertRot) normRot = -normRot;
+
+    // Clamp normalized values to [-1.0, +1.0]
+    normX = Math.max(-1.0, Math.min(1.0, normX));
+    normY = Math.max(-1.0, Math.min(1.0, normY));
+    normRot = Math.max(-1.0, Math.min(1.0, normRot));
 
     // Deadzone Filter (10% deadzone from baseline)
     const DEADZONE = 0.10;
@@ -445,7 +458,11 @@ function processIncomingSerialLine(line) {
       state.action = parsed.action;
     }
 
-    logSerialJoystickRX(normX, normY, state.rotation);
+    if (serialRawValSpan) {
+      serialRawValSpan.textContent = `RAW: ${parsed.x},${parsed.rotation},${parsed.y} | dX:${normX > 0 ? '+' : ''}${normX.toFixed(2)} dY:${normY > 0 ? '+' : ''}${normY.toFixed(2)} dRot:${normRot > 0 ? '+' : ''}${normRot.toFixed(2)}`;
+    }
+
+    logSerialJoystickRX(normX, normY, normRot);
   } else {
     // 📍 Absolute Position Mode (절대 위치 좌표)
     state.x = parsed.x;
@@ -458,16 +475,25 @@ function processIncomingSerialLine(line) {
       state.action = parsed.action;
     }
 
+    if (serialRawValSpan) {
+      serialRawValSpan.textContent = `RAW: X:${parsed.x.toFixed(1)} Y:${parsed.y.toFixed(1)} R:${parsed.rotation.toFixed(0)}°`;
+    }
+
     logSerialRX(parsed);
   }
 }
 
-
-function logSerialJoystickRX(normX, normY, rot) {
+function logSerialJoystickRX(normX, normY, normRot) {
   const line = document.createElement('div');
   line.className = 'log-line serial-log';
-  line.textContent = `>> joystick_move: (dX:${normX > 0 ? '+' : ''}${normX.toFixed(2)}, dY:${normY > 0 ? '+' : ''}${normY.toFixed(2)}, R:${Math.round(rot)}°)`;
+  line.textContent = `>> joystick_game: (dX:${normX >= 0 ? '+' : ''}${normX.toFixed(2)}, dY:${normY >= 0 ? '+' : ''}${normY.toFixed(2)}, dRot:${normRot >= 0 ? '+' : ''}${normRot.toFixed(2)})`;
   terminalBody.appendChild(line);
+  terminalBody.scrollTop = terminalBody.scrollHeight;
+  if (terminalBody.childElementCount > 30) {
+    terminalBody.removeChild(terminalBody.firstChild);
+  }
+}
+terminalBody.appendChild(line);
   terminalBody.scrollTop = terminalBody.scrollHeight;
   if (terminalBody.childElementCount > 30) {
     terminalBody.removeChild(terminalBody.firstChild);
