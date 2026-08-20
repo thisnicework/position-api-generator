@@ -76,15 +76,16 @@ const state = {
 };
 
 const settings = {
-  maxSpeed: 60.0,          // Fast & responsive movement speed (0..5000 map)
-  acceleration: 8.0,       // Fast responsiveness
-  friction: 0.88,          // Smooth deceleration
-  rotationSpeed: 2.0,      // Fast rotation acceleration
-  maxRotationSpeed: 10.0,  // Fast max rotation speed (600 deg/sec)
-  rotationFriction: 0.85,  // Smooth rotation deceleration
+  maxSpeed: 180.0,         // Super fast & responsive movement speed (0..5000 map)
+  acceleration: 24.0,      // Immediate response
+  friction: 0.90,          // Smooth high-speed deceleration
+  rotationSpeed: 10.0,     // Ultra-fast rotation acceleration
+  maxRotationSpeed: 45.0,  // Ultra-fast max rotation speed (2700 deg/sec)
+  rotationFriction: 0.90,  // Smooth rotation deceleration
   canvasRangeX: 5000,       // Coordinate mapping width (0..5000)
   canvasRangeY: 5000,       // Coordinate mapping height (0..5000)
 };
+
 
 
 // --- Keyboard State ---
@@ -448,9 +449,9 @@ function processIncomingSerialLine(line) {
     normY = diffY > 0 ? (diffY / Math.max(10, 1023 - centerY)) : (diffY / Math.max(10, centerY));
     if (invertY) normY = -normY;
 
-    // 3. Calculate Rotation displacement (Game Joystick Rotation - 45° tilt = 100% speed)
+    // 3. Calculate Rotation displacement (Game Joystick Rotation - 12° tilt = 100% max speed!)
     let diffRot = getCircularDiff(parsed.rotation, centerRot);
-    normRot = diffRot / 45.0;
+    normRot = diffRot / 12.0;
     if (invertRot) normRot = -normRot;
 
     // Clamp normalized values to [-1.0, +1.0]
@@ -458,13 +459,13 @@ function processIncomingSerialLine(line) {
     normY = Math.max(-1.0, Math.min(1.0, normY));
     normRot = Math.max(-1.0, Math.min(1.0, normRot));
 
-    // Deadzone Filter (5% deadzone for responsive control)
-    const DEADZONE = 0.05;
+    // Deadzone Filter (2% deadzone for ultra-responsive control)
+    const DEADZONE = 0.02;
     if (Math.abs(normX) < DEADZONE) normX = 0;
     if (Math.abs(normY) < DEADZONE) normY = 0;
     if (Math.abs(normRot) < DEADZONE) normRot = 0;
 
-    const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 1.5) : 1.5;
+    const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 2.0) : 2.0;
 
     // Set physics movement velocity smoothly (게임 조이스틱 조작)
     state.vx = normX * (settings.maxSpeed * speedMult);
@@ -472,6 +473,7 @@ function processIncomingSerialLine(line) {
 
     // Game Joystick Continuous Rotation Velocity (조이스틱 기울임에 따라 연속 회전!)
     state.vRotation = normRot * (settings.maxRotationSpeed * speedMult);
+
 
 
     if (parsed.action !== null) {
