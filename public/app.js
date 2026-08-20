@@ -313,6 +313,61 @@ const actionTracker = {
   closedShapeUntil: 0,   // Hysteresis timestamp for smooth active state
 };
 
+// --- 7 Monitors (0~6) Action FIFO Shift Queue State ---
+// Monitor 0 to 6 queue (Length 7)
+let monitorQueue = [null, null, null, null, null, null, null];
+let monitorShiftIntervalMs = 500; // 0.5s sampling interval
+let monitorShiftTimerId = null;
+
+const monitorsQueueContainer = document.getElementById('monitors-queue-container');
+
+function updateMonitorsUI() {
+  if (!monitorsQueueContainer) return;
+  monitorsQueueContainer.innerHTML = '';
+  
+  for (let i = 0; i < 7; i++) {
+    const val = monitorQueue[i];
+    const badge = document.createElement('div');
+    badge.style.padding = '4px 2px';
+    badge.style.borderRadius = '4px';
+    badge.style.fontWeight = 'bold';
+    badge.style.transition = 'all 0.2s ease';
+    
+    if (val === null) {
+      badge.style.background = 'rgba(255, 255, 255, 0.05)';
+      badge.style.color = '#64748b';
+      badge.style.border = '1px solid rgba(255, 255, 255, 0.08)';
+      badge.innerHTML = `<span style="font-size: 8px; color: #475569; display: block;">M${i}</span>Null`;
+    } else {
+      badge.style.background = 'rgba(56, 189, 248, 0.18)';
+      badge.style.color = '#38bdf8';
+      badge.style.border = '1px solid rgba(56, 189, 248, 0.5)';
+      badge.style.boxShadow = '0 0 8px rgba(56, 189, 248, 0.2)';
+      badge.innerHTML = `<span style="font-size: 8px; color: #7dd3fc; display: block;">M${i}</span>${val}`;
+    }
+    monitorsQueueContainer.appendChild(badge);
+  }
+}
+
+function startMonitorShiftTimer() {
+  if (monitorShiftTimerId) clearInterval(monitorShiftTimerId);
+  
+  updateMonitorsUI();
+  
+  // Every 0.5s (500ms), sample current active action code, unshift to M0, and shift existing right
+  monitorShiftTimerId = setInterval(() => {
+    const currentTrigger = state.action !== undefined ? state.action : 4;
+    monitorQueue.unshift(currentTrigger);
+    if (monitorQueue.length > 7) {
+      monitorQueue.pop();
+    }
+    updateMonitorsUI();
+  }, monitorShiftIntervalMs);
+}
+
+startMonitorShiftTimer();
+
+
 function updateTrajectory(now) {
   const history = actionTracker.trajectoryHistory;
   const last = history[history.length - 1];
@@ -1308,6 +1363,7 @@ function transmitState() {
     y: currentY,
     rotation: currentRotation,
     action: currentAction,
+    monitors: [...monitorQueue],
     monitorDelay: monitorDelayMs,
     timestamp: Date.now()
   };
@@ -1332,7 +1388,9 @@ function transmitState() {
 }
 
 function logTransmission(payload, statusText) {
-  const msg = `>> tx_data(x=${payload.x.toFixed(1).padStart(5, ' ')}, y=${payload.y.toFixed(1).padStart(5, ' ')}, theta=${String(payload.rotation).padStart(3, ' ')}°, action=${payload.action}) [${statusText}]`;
+  const monStr = Array.isArray(payload.monitors) ? payload.monitors.map(m => m === null ? 'Null' : m).join(' ') : '';
+  const msg = `>> tx_data(x=${payload.x.toFixed(1).padStart(5, ' ')}, y=${payload.y.toFixed(1).padStart(5, ' ')}, θ=${String(payload.rotation).padStart(3, ' ')}°, action=${payload.action}) | Monitors: [${monStr}] [${statusText}]`;
+
   
   const line = document.createElement('div');
   line.className = 'log-line send-log';

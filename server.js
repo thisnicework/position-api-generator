@@ -12,7 +12,15 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Store latest state in server memory
-let latestState = { x: 2500, y: 2500, rotation: 0, action: 4, timestamp: 0, method: 'none' };
+let latestState = {
+  x: 2500,
+  y: 2500,
+  rotation: 0,
+  action: 4,
+  monitors: [null, null, null, null, null, null, null],
+  timestamp: 0,
+  method: 'none'
+};
 
 let defaultMonitorDelayMs = 500; // Default 0.5s delay between sequential monitors
 let autoMonitorIndexCounter = 0;
@@ -39,6 +47,7 @@ function broadcastScheduled(stateData, monitorDelayMs) {
         type: 'state',
         scheduledType: 'scheduled_state',
         monitorIndex: monitorIndex,
+        currentMonitorAction: Array.isArray(stateData.monitors) ? stateData.monitors[monitorIndex] : null,
         executeAt: executeAt,
         delayMs: stepDelay,
         ...stateData
@@ -53,7 +62,7 @@ function broadcastScheduled(stateData, monitorDelayMs) {
 
 // HTTP POST endpoint for state updates
 app.post('/api/state', (req, res) => {
-  const { x, y, rotation, action, timestamp, monitorDelay } = req.body;
+  const { x, y, rotation, action, monitors, timestamp, monitorDelay } = req.body;
   
   if (typeof x !== 'number' || typeof y !== 'number' || typeof rotation !== 'number') {
     return res.status(400).json({ error: 'Invalid state format. Require x, y, rotation numbers.' });
@@ -64,7 +73,15 @@ app.post('/api/state', (req, res) => {
     defaultMonitorDelayMs = monitorDelay;
   }
 
-  latestState = { x, y, rotation, action: actionCode, timestamp: timestamp || Date.now(), method: 'HTTP POST' };
+  latestState = {
+    x,
+    y,
+    rotation,
+    action: actionCode,
+    monitors: Array.isArray(monitors) ? monitors : [actionCode, null, null, null, null, null, null],
+    timestamp: timestamp || Date.now(),
+    method: 'HTTP POST'
+  };
 
   // Log receipt in a formatted way
   logState('HTTP', latestState);
@@ -74,6 +91,7 @@ app.post('/api/state', (req, res) => {
   
   res.json({ status: 'ok', received: latestState, monitorDelay: defaultMonitorDelayMs });
 });
+
 
 // HTTP GET endpoint to retrieve the latest state
 app.get('/api/state', (req, res) => {
@@ -154,13 +172,15 @@ function logState(type, state) {
   const yStr = state.y.toFixed(1).padStart(6, ' ');
   const rStr = state.rotation.toFixed(0).padStart(3, ' ');
   const aStr = String(state.action !== undefined ? state.action : 4).padStart(2, ' ');
-  
+  const monStr = Array.isArray(state.monitors) ? state.monitors.map(m => m === null ? 'Null' : m).join(' ') : '';
+
   let typeColor = '\x1b[33m'; // Default Yellow
   if (type === 'WS') typeColor = '\x1b[32m'; // Green
   if (type === 'SERIAL') typeColor = '\x1b[36m'; // Cyan
-  
-  console.log(`${typeColor}[${type}]\x1b[0m Time: ${timeStr} | Position: (\x1b[35mX:${xStr}\x1b[0m, \x1b[35mY:${yStr}\x1b[0m) | Angle: \x1b[36m${rStr}°\x1b[0m | Action: \x1b[33m${aStr}\x1b[0m`);
+
+  console.log(`${typeColor}[${type}]\x1b[0m Time: ${timeStr} | Pos: (\x1b[35mX:${xStr}\x1b[0m, \x1b[35mY:${yStr}\x1b[0m) | Angle: \x1b[36m${rStr}°\x1b[0m | Action: \x1b[33m${aStr}\x1b[0m | Monitors: [\x1b[32m${monStr}\x1b[0m]`);
 }
+
 
 // --- Serial Port Integration (Node.js backend) ---
 let SerialPort = null;

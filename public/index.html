@@ -252,7 +252,7 @@
 
         <!-- Live Telemetry Section -->
         <section class="panel-section">
-          <h2>Telemetry</h2>
+          <h2>Telemetry & 7 Monitors Queue</h2>
           <div class="telemetry-grid">
             <div class="tel-item">
               <span class="tel-label">X Coordinate</span>
@@ -272,10 +272,22 @@
             </div>
             <div class="tel-item tel-action-item">
               <span class="tel-label">Action State Code</span>
-              <span id="tel-a" class="tel-value">3 (Default)</span>
+              <span id="tel-a" class="tel-value">4 (Default)</span>
+            </div>
+          </div>
+
+          <!-- 7 Monitors (0 ~ 6) 0.5s Shift Queue -->
+          <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <div style="font-size: 10px; font-weight: 700; color: #38bdf8; margin-bottom: 6px; display: flex; justify-content: space-between;">
+              <span>🖥️ Monitors (0 ~ 6) 0.5s Shift Queue:</span>
+              <span id="monitor-shift-interval" style="color: var(--text-muted); font-size: 9px;">Sampling 0.5s</span>
+            </div>
+            <div id="monitors-queue-container" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; font-family: 'Fira Code', monospace; font-size: 10px; text-align: center;">
+              <!-- Dynamically populated M0 ~ M6 slots -->
             </div>
           </div>
         </section>
+
 
         <!-- Instruction Section -->
         <section class="panel-section instructions">
