@@ -314,7 +314,7 @@ const actionTracker = {
 };
 
 // --- 7 Monitors (0~6) Action FIFO Shift Queue State ---
-// Monitor 0 to 6 queue (Length 7)
+// Monitor 0 to 6 queue holding full snapshots { x, y, rotation, action, timestamp } (Length 7)
 let monitorQueue = [null, null, null, null, null, null, null];
 let monitorShiftIntervalMs = 1500; // 1.5s sampling interval gap
 let monitorShiftTimerId = null;
@@ -326,14 +326,14 @@ function updateMonitorsUI() {
   monitorsQueueContainer.innerHTML = '';
   
   for (let i = 0; i < 7; i++) {
-    const val = monitorQueue[i];
+    const item = monitorQueue[i];
     const badge = document.createElement('div');
-    badge.style.padding = '4px 2px';
+    badge.style.padding = '3px 2px';
     badge.style.borderRadius = '4px';
     badge.style.fontWeight = 'bold';
     badge.style.transition = 'all 0.2s ease';
     
-    if (val === null) {
+    if (!item) {
       badge.style.background = 'rgba(255, 255, 255, 0.05)';
       badge.style.color = '#64748b';
       badge.style.border = '1px solid rgba(255, 255, 255, 0.08)';
@@ -343,7 +343,12 @@ function updateMonitorsUI() {
       badge.style.color = '#38bdf8';
       badge.style.border = '1px solid rgba(56, 189, 248, 0.5)';
       badge.style.boxShadow = '0 0 8px rgba(56, 189, 248, 0.2)';
-      badge.innerHTML = `<span style="font-size: 8px; color: #7dd3fc; display: block;">M${i}</span>${val}`;
+      badge.innerHTML = `
+        <span style="font-size: 8px; color: #7dd3fc; display: block;">M${i}</span>
+        <div style="font-size: 11px; font-weight: 800; color: #38bdf8;">A:${item.action}</div>
+        <div style="font-size: 7px; color: #94a3b8; font-weight: normal; margin-top: 1px;">(${item.x.toFixed(0)},${item.y.toFixed(0)})</div>
+        <div style="font-size: 7px; color: #94a3b8; font-weight: normal;">${item.rotation}°</div>
+      `;
     }
     monitorsQueueContainer.appendChild(badge);
   }
@@ -354,16 +359,25 @@ function startMonitorShiftTimer() {
   
   updateMonitorsUI();
   
-  // Every 1.5s (1500ms), sample current active action code, unshift to M0, and shift existing right
+  // Every 1.5s (1500ms), sample current active snapshot (x, y, rotation, action), unshift to M0, and shift existing right
   monitorShiftTimerId = setInterval(() => {
     const currentTrigger = state.action !== undefined ? state.action : 4;
-    monitorQueue.unshift(currentTrigger);
+    const snapshot = {
+      x: parseFloat(state.x.toFixed(1)),
+      y: parseFloat(state.y.toFixed(1)),
+      rotation: Math.round(state.rotation),
+      action: currentTrigger,
+      timestamp: Date.now()
+    };
+
+    monitorQueue.unshift(snapshot);
     if (monitorQueue.length > 7) {
       monitorQueue.pop();
     }
     updateMonitorsUI();
   }, monitorShiftIntervalMs);
 }
+
 
 
 
@@ -1404,8 +1418,11 @@ function transmitState() {
 }
 
 function logTransmission(payload, statusText) {
-  const monStr = Array.isArray(payload.monitors) ? payload.monitors.map(m => m === null ? 'Null' : m).join(' ') : '';
+  const monStr = Array.isArray(payload.monitors) 
+    ? payload.monitors.map(m => m === null ? 'Null' : `A:${m.action}(${m.x.toFixed(0)},${m.y.toFixed(0)},${m.rotation}°)`).join(' ') 
+    : '';
   const msg = `>> tx_data(x=${payload.x.toFixed(1).padStart(5, ' ')}, y=${payload.y.toFixed(1).padStart(5, ' ')}, θ=${String(payload.rotation).padStart(3, ' ')}°, action=${payload.action}) | Monitors: [${monStr}] [${statusText}]`;
+
 
   
   const line = document.createElement('div');

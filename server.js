@@ -37,7 +37,7 @@ const wss = new WebSocket.Server({ noServer: true });
 function broadcastScheduled(stateData, monitorDelayMs) {
   const baseTime = Date.now();
   const stepDelay = typeof monitorDelayMs === 'number' ? monitorDelayMs : defaultMonitorDelayMs;
-  const monitorsArr = Array.isArray(stateData.monitors) ? stateData.monitors : [stateData.action, null, null, null, null, null, null];
+  const monitorsArr = Array.isArray(stateData.monitors) ? stateData.monitors : [];
 
   let index = 0;
   wss.clients.forEach((client) => {
@@ -46,8 +46,9 @@ function broadcastScheduled(stateData, monitorDelayMs) {
       const monitorIndex = typeof client.monitorIndex === 'number' ? client.monitorIndex : index;
       const executeAt = baseTime + (monitorIndex * stepDelay);
 
-      // Extract specific action code for THIS monitor from the 1-second Shift Queue
-      const monitorSpecificAction = monitorsArr[monitorIndex] !== undefined ? monitorsArr[monitorIndex] : null;
+      // Extract specific historical snapshot (x, y, rotation, action) for THIS monitor from the 1.5s Shift Queue
+      const item = monitorsArr[monitorIndex];
+      const targetSnapshot = (item && typeof item === 'object') ? item : (typeof item === 'number' ? { action: item } : null);
 
       const scheduledPayload = {
         type: 'state',
@@ -56,9 +57,13 @@ function broadcastScheduled(stateData, monitorDelayMs) {
         executeAt: executeAt,
         delayMs: stepDelay,
         ...stateData,
-        // Override 'action' so each monitor gets ONLY its designated queue value!
-        action: monitorSpecificAction,
-        currentMonitorAction: monitorSpecificAction,
+        // Override state parameters so Monitor N receives THAT exact moment's X, Y, Rotation, and Action!
+        x: targetSnapshot && typeof targetSnapshot.x === 'number' ? targetSnapshot.x : stateData.x,
+        y: targetSnapshot && typeof targetSnapshot.y === 'number' ? targetSnapshot.y : stateData.y,
+        rotation: targetSnapshot && typeof targetSnapshot.rotation === 'number' ? targetSnapshot.rotation : stateData.rotation,
+        action: targetSnapshot && typeof targetSnapshot.action === 'number' ? targetSnapshot.action : stateData.action,
+        snapshot: targetSnapshot,
+        currentMonitorAction: targetSnapshot && typeof targetSnapshot.action === 'number' ? targetSnapshot.action : null,
         globalAction: stateData.action
       };
 
@@ -67,6 +72,7 @@ function broadcastScheduled(stateData, monitorDelayMs) {
     }
   });
 }
+
 
 
 
@@ -195,7 +201,9 @@ function logState(type, state) {
   const yStr = state.y.toFixed(1).padStart(6, ' ');
   const rStr = state.rotation.toFixed(0).padStart(3, ' ');
   const aStr = String(state.action !== undefined ? state.action : 4).padStart(2, ' ');
-  const monStr = Array.isArray(state.monitors) ? state.monitors.map(m => m === null ? 'Null' : m).join(' ') : '';
+  const monStr = Array.isArray(state.monitors) 
+    ? state.monitors.map((m, idx) => m === null ? `M${idx}:Null` : `M${idx}:A${m.action}(${m.x.toFixed(0)},${m.y.toFixed(0)},${m.rotation}°)`).join(' ') 
+    : '';
 
   let typeColor = '\x1b[33m'; // Default Yellow
   if (type === 'WS') typeColor = '\x1b[32m'; // Green
@@ -203,6 +211,7 @@ function logState(type, state) {
 
   console.log(`${typeColor}[${type}]\x1b[0m Time: ${timeStr} | Pos: (\x1b[35mX:${xStr}\x1b[0m, \x1b[35mY:${yStr}\x1b[0m) | Angle: \x1b[36m${rStr}°\x1b[0m | Action: \x1b[33m${aStr}\x1b[0m | Monitors: [\x1b[32m${monStr}\x1b[0m]`);
 }
+
 
 
 // --- Serial Port Integration (Node.js backend) ---
