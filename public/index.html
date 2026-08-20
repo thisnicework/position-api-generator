@@ -38,14 +38,8 @@
         <section class="panel-section">
           <h2>Configuration</h2>
           <div class="form-group">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <label for="server-address" style="margin: 0;">Server Address</label>
-              <div>
-                <button id="btn-preset-local" class="btn btn-text" style="font-size: 10px; padding: 1px 4px;">Local</button>
-                <button id="btn-preset-render" class="btn btn-text" style="font-size: 10px; padding: 1px 4px;">Render</button>
-              </div>
-            </div>
-            <input type="text" id="server-address" value="http://localhost:5005/api/state">
+            <label for="server-address">Server Address</label>
+            <input type="text" id="server-address" value="https://position-api-generator.onrender.com/api/state">
           </div>
           <div class="form-group">
             <label for="tx-interval">TX Interval (ms)</label>
@@ -108,9 +102,16 @@
           </div>
 
           <div class="serial-options" style="margin-top: 10px; border-top: 1px dashed #e0e0e0; padding-top: 8px;">
+            <div class="form-group" style="margin-bottom: 8px;">
+              <label for="serial-control-type">Control Type (조이스틱 동작 방식)</label>
+              <select id="serial-control-type">
+                <option value="joystick" selected>🎮 Joystick Movement (게임 방식 이동)</option>
+                <option value="absolute">📍 Absolute Position (절대 위치 좌표)</option>
+              </select>
+            </div>
             <div class="checkbox-group" style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted);">
               <input type="checkbox" id="serial-analog-map">
-              <label for="serial-analog-map" style="margin:0; font-weight: normal; cursor: pointer;">Map Analog ADC (0~1023 -> 0~5000)</label>
+              <label for="serial-analog-map" style="margin:0; font-weight: normal; cursor: pointer;">Map Analog ADC (0~1023 -> Absolute 0~5000)</label>
             </div>
             <div class="serial-raw-display" style="margin-top: 6px; font-family: 'Fira Code', monospace; font-size: 10px; color: #0072bd; background: #f0f7ff; padding: 4px 6px; border-radius: 3px; border: 1px solid #cce0f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
               RAW: <span id="serial-raw-val">Awaiting Serial Data...</span>

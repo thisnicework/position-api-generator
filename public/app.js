@@ -31,8 +31,10 @@ const nodeSerialBaudSelect = document.getElementById('node-serial-baud');
 const nodeConnectBtn = document.getElementById('node-connect-btn');
 const nodeDisconnectBtn = document.getElementById('node-disconnect-btn');
 
+const serialControlTypeSelect = document.getElementById('serial-control-type');
 const serialAnalogMapCheckbox = document.getElementById('serial-analog-map');
 const serialRawValSpan = document.getElementById('serial-raw-val');
+
 
 
 // --- Physics State & Variables ---
@@ -320,7 +322,61 @@ function processIncomingSerialLine(line) {
   }
 
   const parsed = parseSerialString(line);
-  if (parsed) {
+  if (!parsed) return;
+
+  const mode = serialControlTypeSelect ? serialControlTypeSelect.value : 'joystick';
+
+  if (mode === 'joystick') {
+    // 🎮 Joystick Game Movement Mode (게임 방식: 조이스틱 기울임 -> 이동 속도)
+    let normX = 0;
+    let normY = 0;
+
+    // 1. Determine normalized input vector (-1.0 ~ +1.0)
+    if (parsed.x >= 0 && parsed.x <= 1023 && parsed.y >= 0 && parsed.y <= 1023) {
+      // 0..1023 Analog Joystick centered at 512
+      normX = (parsed.x - 512) / 512.0;
+      normY = (parsed.y - 512) / 512.0;
+    } else if (Math.abs(parsed.x) <= 100 && Math.abs(parsed.y) <= 100) {
+      // Direct percentage vector (-100 ~ +100)
+      normX = parsed.x / 100.0;
+      normY = parsed.y / 100.0;
+    } else {
+      // 0..5000 range values: convert to relative direction from center 2500
+      normX = (parsed.x - 2500) / 2500.0;
+      normY = (parsed.y - 2500) / 2500.0;
+    }
+
+    // 2. Deadzone Filter (데드존: 중앙 부근 미세 떨림 방지 12%)
+    const DEADZONE = 0.12;
+    if (Math.abs(normX) < DEADZONE) normX = 0;
+    if (Math.abs(normY) < DEADZONE) normY = 0;
+
+    // 3. Set physics movement velocity smoothly (게임 조이스틱 조작)
+    state.vx = normX * settings.maxSpeed;
+    state.vy = normY * settings.maxSpeed;
+
+    // 4. Rotation Angle
+    if (parsed.rotation >= 0 && parsed.rotation <= 1023 && (parsed.rotation < 80 || parsed.rotation > 280)) {
+      // If rotation value is potentiometer/knob
+      const normR = (parsed.rotation - 512) / 512.0;
+      if (Math.abs(normR) > DEADZONE) {
+        state.vRotation = normR * settings.maxRotationSpeed;
+      } else {
+        state.vRotation = 0;
+      }
+    } else {
+      // Direct angle degree
+      state.rotation = parsed.rotation;
+      state.vRotation = 0;
+    }
+
+    if (parsed.action !== null) {
+      state.action = parsed.action;
+    }
+
+    logSerialJoystickRX(normX, normY, state.rotation);
+  } else {
+    // 📍 Absolute Position Mode (절대 위치 좌표)
     state.x = parsed.x;
     state.y = parsed.y;
     state.rotation = parsed.rotation;
@@ -335,6 +391,17 @@ function processIncomingSerialLine(line) {
   }
 }
 
+function logSerialJoystickRX(normX, normY, rot) {
+  const line = document.createElement('div');
+  line.className = 'log-line serial-log';
+  line.textContent = `>> joystick_move: (dX:${normX > 0 ? '+' : ''}${normX.toFixed(2)}, dY:${normY > 0 ? '+' : ''}${normY.toFixed(2)}, R:${Math.round(rot)}°)`;
+  terminalBody.appendChild(line);
+  terminalBody.scrollTop = terminalBody.scrollHeight;
+  if (terminalBody.childElementCount > 30) {
+    terminalBody.removeChild(terminalBody.firstChild);
+  }
+}
+
 function logSerialRX(parsed) {
   const line = document.createElement('div');
   line.className = 'log-line serial-log';
@@ -345,6 +412,7 @@ function logSerialRX(parsed) {
     terminalBody.removeChild(terminalBody.firstChild);
   }
 }
+
 
 // --- Web Serial API Connection ---
 async function connectWebSerial() {
