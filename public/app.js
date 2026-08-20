@@ -67,6 +67,50 @@ let calibSamples = [];
 let calibStartTime = 0;
 const CALIB_DURATION = 5000;
 
+// --- Sensor Smoothing Filter (Moving Average Ring Buffer) ---
+const SMOOTHING_SIZE = 5;  // 5-sample moving average window
+const sensorHistory = {
+  x: [],
+  y: [],
+  rot: []
+};
+
+function pushSensorSample(axis, value) {
+  sensorHistory[axis].push(value);
+  if (sensorHistory[axis].length > SMOOTHING_SIZE) {
+    sensorHistory[axis].shift();
+  }
+}
+
+function getSmoothedValue(axis) {
+  const arr = sensorHistory[axis];
+  if (arr.length === 0) return 0;
+  // Median filter for spike rejection, then average the middle values
+  const sorted = [...arr].sort((a, b) => a - b);
+  // Remove the single highest and lowest outliers if we have enough samples
+  if (sorted.length >= 5) {
+    const trimmed = sorted.slice(1, sorted.length - 1);
+    return trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
+  }
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+function getSmoothedRotation() {
+  const arr = sensorHistory.rot;
+  if (arr.length === 0) return 0;
+  // For circular values (0-360), use sine/cosine averaging to avoid wraparound jumps
+  let sinSum = 0, cosSum = 0;
+  arr.forEach(deg => {
+    const rad = deg * Math.PI / 180;
+    sinSum += Math.sin(rad);
+    cosSum += Math.cos(rad);
+  });
+  let avgRad = Math.atan2(sinSum / arr.length, cosSum / arr.length);
+  let avgDeg = avgRad * 180 / Math.PI;
+  return ((avgDeg % 360) + 360) % 360;
+}
+
+
 
 
 
@@ -436,8 +480,18 @@ function processIncomingSerialLine(line) {
   const mode = serialControlTypeSelect ? serialControlTypeSelect.value : 'joystick';
 
   if (mode === 'joystick') {
-    // 🎮 Joystick Game Movement Mode (게임 방식: 조이스틱 기울임 -> 이동 속도 및 연속 회전)
-    
+    // 🎮 Joystick Game Movement Mode
+
+    // --- Step 1: Push raw sensor values into smoothing filter ---
+    pushSensorSample('x', parsed.x);
+    pushSensorSample('y', parsed.y);
+    pushSensorSample('rot', parsed.rotation);
+
+    // --- Step 2: Get smoothed (filtered) sensor values ---
+    const smoothX = getSmoothedValue('x');
+    const smoothY = getSmoothedValue('y');
+    const smoothRot = getSmoothedRotation();
+
     // Read Min, Center, Max baseline values from inputs
     const minX = calibMinXInput ? (parseFloat(calibMinXInput.value) || 0) : 0;
     const centerX = calibXInput ? (parseFloat(calibXInput.value) || 508) : 508;
@@ -458,8 +512,10 @@ function processIncomingSerialLine(line) {
     let normY = 0;
     let normRot = 0;
 
-    // 1. Piecewise X displacement normalization (-1.0 ~ +1.0)
-    const diffX = parsed.x - centerX;
+    // --- Step 3: Normalize using SMOOTHED values (not raw) ---
+
+    // X: Piecewise normalization (-1.0 ~ +1.0)
+    const diffX = smoothX - centerX;
     if (diffX > 0) {
       normX = diffX / Math.max(5, maxX - centerX);
     } else {
@@ -467,8 +523,8 @@ function processIncomingSerialLine(line) {
     }
     if (invertX) normX = -normX;
 
-    // 2. Piecewise Y displacement normalization (-1.0 ~ +1.0)
-    const diffY = parsed.y - centerY;
+    // Y: Piecewise normalization (-1.0 ~ +1.0)
+    const diffY = smoothY - centerY;
     if (diffY > 0) {
       normY = diffY / Math.max(5, maxY - centerY);
     } else {
@@ -476,34 +532,34 @@ function processIncomingSerialLine(line) {
     }
     if (invertY) normY = -normY;
 
-    // 3. Symmetrical Rotation deflection normalization (-1.0 ~ +1.0)
-    let diffRot = getCircularDiff(parsed.rotation, centerRot);
+    // Rotation: Symmetrical deflection normalization (-1.0 ~ +1.0)
+    let diffRot = getCircularDiff(smoothRot, centerRot);
     normRot = diffRot / Math.max(5, rotSpan);
     if (invertRot) normRot = -normRot;
 
-
-    // Clamp normalized values to [-1.0, +1.0]
+    // Clamp to [-1.0, +1.0]
     normX = Math.max(-1.0, Math.min(1.0, normX));
     normY = Math.max(-1.0, Math.min(1.0, normY));
     normRot = Math.max(-1.0, Math.min(1.0, normRot));
 
-    // Deadzone Filters (1.5% for position X/Y, 6% for Rotation to absorb noise)
-    const DEADZONE = 0.015;
+    // --- Step 4: Deadzone (kills residual micro-noise after smoothing) ---
+    const DEADZONE = 0.04;
     if (Math.abs(normX) < DEADZONE) normX = 0;
     if (Math.abs(normY) < DEADZONE) normY = 0;
+    if (Math.abs(normRot) < DEADZONE) normRot = 0;
 
-    const ROT_DEADZONE = 0.06;
-    if (Math.abs(normRot) < ROT_DEADZONE) normRot = 0;
-
+    // --- Step 5: LERP smoothing on velocity output (prevents any remaining spikes) ---
     const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 2.0) : 2.0;
+    const LERP = 0.4;  // Smooth blend factor (0=frozen, 1=instant)
 
-    // Set physics movement velocity smoothly (게임 조이스틱 조작)
-    state.vx = normX * (settings.maxSpeed * speedMult);
-    state.vy = normY * (settings.maxSpeed * speedMult);
-
-    // Smooth Low-Pass Filtered Rotation Velocity (노이즈 튐 방지 LERP 감쇄 필터)
+    const targetVx = normX * (settings.maxSpeed * speedMult);
+    const targetVy = normY * (settings.maxSpeed * speedMult);
     const targetVRot = normRot * (settings.maxRotationSpeed * speedMult);
-    state.vRotation += (targetVRot - state.vRotation) * 0.35;
+
+    state.vx += (targetVx - state.vx) * LERP;
+    state.vy += (targetVy - state.vy) * LERP;
+    state.vRotation += (targetVRot - state.vRotation) * LERP;
+
 
 
 
