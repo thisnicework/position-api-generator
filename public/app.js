@@ -425,6 +425,8 @@ function checkClosedShape(now) {
   return false;
 }
 
+let lastActiveTrigger = 4; // Remembers last triggered action code (defaults to 4)
+
 function determineActionCode() {
   const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
   const distToTop = Math.hypot(state.x - 2500, state.y - 5000);
@@ -435,62 +437,73 @@ function determineActionCode() {
   // Update trajectory points
   updateTrajectory(now);
 
+  let rawAction = 4;
+
   // Mode 7: (2500, 5000) 상단 영역 근접 (shifted from 6)
   if (distToTop <= 400) {
-    return 7;
-  }
-
-  // Mode 6: 원 보더 방향 이동 (shifted from 5)
-  const isNearBorder = distFromCenter >= 1400;
-  const nx = distFromCenter > 0 ? (state.x - 2500) / distFromCenter : 0;
-  const ny = distFromCenter > 0 ? (state.y - 2500) / distFromCenter : 0;
-  const outwardVel = state.vx * nx + state.vy * ny;
-
-  const isMovingTowardBorder = isNearBorder && (
-    outwardVel > 0.05 ||
-    distFromCenter >= 2100 ||
-    (keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight)
-  );
-
-  if (isMovingTowardBorder) {
-    actionTracker.lastBorderPauseTime = null;
-    if (!actionTracker.borderMoveStartTime) {
-      actionTracker.borderMoveStartTime = now;
-    }
-    if (now - actionTracker.borderMoveStartTime >= 800) {
-      return 6;
-    }
+    rawAction = 7;
   } else {
-    if (!actionTracker.lastBorderPauseTime) {
-      actionTracker.lastBorderPauseTime = now;
-    } else if (now - actionTracker.lastBorderPauseTime > 300) {
-      actionTracker.borderMoveStartTime = null;
+    // Mode 6: 원 보더 방향 이동 (shifted from 5)
+    const isNearBorder = distFromCenter >= 1400;
+    const nx = distFromCenter > 0 ? (state.x - 2500) / distFromCenter : 0;
+    const ny = distFromCenter > 0 ? (state.y - 2500) / distFromCenter : 0;
+    const outwardVel = state.vx * nx + state.vy * ny;
+
+    const isMovingTowardBorder = isNearBorder && (
+      outwardVel > 0.05 ||
+      distFromCenter >= 2100 ||
+      (keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight)
+    );
+
+    if (isMovingTowardBorder) {
       actionTracker.lastBorderPauseTime = null;
-    }
-  }
-
-  // Rotation Mode Evaluation: rotate가 느리면 2, 빠르면 3
-  const isRotating = keys.q || keys.Q || keys.e || keys.E || rotSpeed >= 0.15;
-  if (isRotating && linearSpeed < 4.0) {
-    if (rotSpeed >= 1.2) {
-      return 3; // Fast Rotation (빠른 회전)
+      if (!actionTracker.borderMoveStartTime) {
+        actionTracker.borderMoveStartTime = now;
+      }
+      if (now - actionTracker.borderMoveStartTime >= 800) {
+        rawAction = 6;
+      }
     } else {
-      return 2; // Slow Rotation (느린 회전)
+      if (!actionTracker.lastBorderPauseTime) {
+        actionTracker.lastBorderPauseTime = now;
+      } else if (now - actionTracker.lastBorderPauseTime > 300) {
+        actionTracker.borderMoveStartTime = null;
+        actionTracker.lastBorderPauseTime = null;
+      }
+    }
+
+    if (rawAction === 4) {
+      // Rotation Mode Evaluation: rotate가 느리면 2, 빠르면 3
+      const isRotating = keys.q || keys.Q || keys.e || keys.E || rotSpeed >= 0.15;
+      if (isRotating && linearSpeed < 4.0) {
+        if (rotSpeed >= 1.2) {
+          rawAction = 3; // Fast Rotation (빠른 회전)
+        } else {
+          rawAction = 2; // Slow Rotation (느린 회전)
+        }
+      } else {
+        // Mode 1: 닫힌 도형/원 이동 (Closed Shape Loop Detection)
+        const isClosedShapeNow = checkClosedShape(now);
+        if (isClosedShapeNow) {
+          actionTracker.closedShapeUntil = now + 1500; // Keep Mode 1 active for 1.5s after loop completion
+        }
+        if (now < actionTracker.closedShapeUntil) {
+          rawAction = 1;
+        }
+      }
     }
   }
 
-  // Mode 1: 닫힌 도형/원 이동 (Closed Shape Loop Detection)
-  const isClosedShapeNow = checkClosedShape(now);
-  if (isClosedShapeNow) {
-    actionTracker.closedShapeUntil = now + 1500; // Keep Mode 1 active for 1.5s after loop completion
-  }
-  if (now < actionTracker.closedShapeUntil) {
-    return 1;
+  // If a active movement trigger occurred (1, 2, 3, 6, 7), update lastActiveTrigger!
+  if (rawAction !== 4) {
+    lastActiveTrigger = rawAction;
+    return rawAction;
   }
 
-  // Mode 4: 기본 (Default - shifted from 3)
-  return 4;
+  // When doing nothing (idle / rawAction === 4), return the last active trigger sent!
+  return lastActiveTrigger;
 }
+
 
 
 // --- Control Panel Show/Hide Toggle Logic ---
