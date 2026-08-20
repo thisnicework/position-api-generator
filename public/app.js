@@ -487,13 +487,13 @@ function processIncomingSerialLine(line) {
     normY = Math.max(-1.0, Math.min(1.0, normY));
     normRot = Math.max(-1.0, Math.min(1.0, normRot));
 
-    // Deadzone Filter (1.5% deadzone)
+    // Deadzone Filters (1.5% for position X/Y, 6% for Rotation to absorb noise)
     const DEADZONE = 0.015;
     if (Math.abs(normX) < DEADZONE) normX = 0;
     if (Math.abs(normY) < DEADZONE) normY = 0;
-    if (Math.abs(normRot) < DEADZONE) normRot = 0;
 
-
+    const ROT_DEADZONE = 0.06;
+    if (Math.abs(normRot) < ROT_DEADZONE) normRot = 0;
 
     const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 2.0) : 2.0;
 
@@ -501,8 +501,10 @@ function processIncomingSerialLine(line) {
     state.vx = normX * (settings.maxSpeed * speedMult);
     state.vy = normY * (settings.maxSpeed * speedMult);
 
-    // Game Joystick Continuous Rotation Velocity (조이스틱 기울임에 따라 연속 회전!)
-    state.vRotation = normRot * (settings.maxRotationSpeed * speedMult);
+    // Smooth Low-Pass Filtered Rotation Velocity (노이즈 튐 방지 LERP 감쇄 필터)
+    const targetVRot = normRot * (settings.maxRotationSpeed * speedMult);
+    state.vRotation += (targetVRot - state.vRotation) * 0.35;
+
 
 
 
