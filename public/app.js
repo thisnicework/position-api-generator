@@ -33,8 +33,11 @@ const nodeDisconnectBtn = document.getElementById('node-disconnect-btn');
 
 const serialControlTypeSelect = document.getElementById('serial-control-type');
 const serialOrderSelect = document.getElementById('serial-order');
+const serialInvertYCheckbox = document.getElementById('serial-invert-y');
+const serialInvertRotCheckbox = document.getElementById('serial-invert-rot');
 const serialAnalogMapCheckbox = document.getElementById('serial-analog-map');
 const serialRawValSpan = document.getElementById('serial-raw-val');
+
 
 
 const calibXInput = document.getElementById('calib-x');
@@ -384,39 +387,53 @@ function processIncomingSerialLine(line) {
     const centerY = calibYInput ? (parseFloat(calibYInput.value) || 179) : 179;
     const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 10) : 10;
 
+    const invertY = serialInvertYCheckbox ? serialInvertYCheckbox.checked : false;
+    const invertRot = serialInvertRotCheckbox ? serialInvertRotCheckbox.checked : false;
 
     let normX = 0;
     let normY = 0;
+    let normRot = 0;
 
-    // Calculate displacement relative to custom resting zero-point
+    // 1. Calculate X displacement relative to resting zero-point (-1.0 ~ +1.0)
     const diffX = parsed.x - centerX;
-    const diffY = parsed.y - centerY;
-
-    // Normalize displacement (-1.0 ~ +1.0)
     if (diffX > 0) {
       normX = diffX / Math.max(1, (1023 - centerX));
     } else {
       normX = diffX / Math.max(1, centerX);
     }
 
+    // 2. Calculate Y displacement relative to resting zero-point (-1.0 ~ +1.0)
+    const diffY = parsed.y - centerY;
     if (diffY > 0) {
       normY = diffY / Math.max(1, (1023 - centerY));
     } else {
       normY = diffY / Math.max(1, centerY);
     }
 
-    // Deadzone Filter (12% deadzone from baseline)
-    const DEADZONE = 0.12;
+    if (invertY) normY = -normY;
+
+    // 3. Calculate Rotation displacement relative to resting zero-point (Game Joystick Rotation!)
+    const diffRot = parsed.rotation - centerRot;
+    if (diffRot > 0) {
+      normRot = diffRot / Math.max(1, (1023 - centerRot));
+    } else {
+      normRot = diffRot / Math.max(1, centerRot);
+    }
+
+    if (invertRot) normRot = -normRot;
+
+    // Deadzone Filter (10% deadzone from baseline)
+    const DEADZONE = 0.10;
     if (Math.abs(normX) < DEADZONE) normX = 0;
     if (Math.abs(normY) < DEADZONE) normY = 0;
+    if (Math.abs(normRot) < DEADZONE) normRot = 0;
 
     // Set physics movement velocity smoothly (게임 조이스틱 조작)
     state.vx = normX * settings.maxSpeed;
     state.vy = normY * settings.maxSpeed;
 
-    // Rotation Angle
-    state.rotation = parsed.rotation;
-    state.vRotation = 0;
+    // Game Joystick Continuous Rotation Velocity (조이스틱 기울임에 따라 연속 회전!)
+    state.vRotation = normRot * settings.maxRotationSpeed;
 
     if (parsed.action !== null) {
       state.action = parsed.action;
