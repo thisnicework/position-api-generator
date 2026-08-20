@@ -493,12 +493,7 @@ function logSerialJoystickRX(normX, normY, normRot) {
     terminalBody.removeChild(terminalBody.firstChild);
   }
 }
-terminalBody.appendChild(line);
-  terminalBody.scrollTop = terminalBody.scrollHeight;
-  if (terminalBody.childElementCount > 30) {
-    terminalBody.removeChild(terminalBody.firstChild);
-  }
-}
+
 
 function logSerialRX(parsed) {
   const line = document.createElement('div');
