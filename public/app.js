@@ -316,7 +316,7 @@ const actionTracker = {
 // --- 7 Monitors (0~6) Action FIFO Shift Queue State ---
 // Monitor 0 to 6 queue (Length 7)
 let monitorQueue = [null, null, null, null, null, null, null];
-let monitorShiftIntervalMs = 500; // 0.5s sampling interval
+let monitorShiftIntervalMs = 1000; // 1.0s sampling interval gap
 let monitorShiftTimerId = null;
 
 const monitorsQueueContainer = document.getElementById('monitors-queue-container');
@@ -354,7 +354,7 @@ function startMonitorShiftTimer() {
   
   updateMonitorsUI();
   
-  // Every 0.5s (500ms), sample current active action code, unshift to M0, and shift existing right
+  // Every 1.0s (1000ms), sample current active action code, unshift to M0, and shift existing right
   monitorShiftTimerId = setInterval(() => {
     const currentTrigger = state.action !== undefined ? state.action : 4;
     monitorQueue.unshift(currentTrigger);
@@ -364,6 +364,7 @@ function startMonitorShiftTimer() {
     updateMonitorsUI();
   }, monitorShiftIntervalMs);
 }
+
 
 startMonitorShiftTimer();
 
