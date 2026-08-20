@@ -375,8 +375,10 @@ function startMonitorShiftTimer() {
       monitorQueue.pop();
     }
     updateMonitorsUI();
+    transmitState();
   }, monitorShiftIntervalMs);
 }
+
 
 
 
@@ -1472,12 +1474,15 @@ function transmitState() {
   const currentRotation = Math.round(state.rotation);
   const currentAction = state.action !== undefined ? state.action : 3;
 
-  // Skip sending if values haven't changed
+  const monitorsHash = JSON.stringify(monitorQueue);
+
+  // Skip sending only if coordinates, action, AND monitor shift queue haven't changed
   if (
     currentX === lastTransmittedState.x &&
     currentY === lastTransmittedState.y &&
     currentRotation === lastTransmittedState.rotation &&
-    currentAction === lastTransmittedState.action
+    currentAction === lastTransmittedState.action &&
+    monitorsHash === lastTransmittedState.monitorsHash
   ) {
     return;
   }
@@ -1487,8 +1492,10 @@ function transmitState() {
     x: currentX,
     y: currentY,
     rotation: currentRotation,
-    action: currentAction
+    action: currentAction,
+    monitorsHash: monitorsHash
   };
+
 
   const payload = {
     x: currentX,
