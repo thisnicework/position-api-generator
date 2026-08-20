@@ -36,6 +36,7 @@ const wss = new WebSocket.Server({ noServer: true });
 function broadcastScheduled(stateData, monitorDelayMs) {
   const baseTime = Date.now();
   const stepDelay = typeof monitorDelayMs === 'number' ? monitorDelayMs : defaultMonitorDelayMs;
+  const monitorsArr = Array.isArray(stateData.monitors) ? stateData.monitors : [stateData.action, null, null, null, null, null, null];
 
   let index = 0;
   wss.clients.forEach((client) => {
@@ -44,14 +45,20 @@ function broadcastScheduled(stateData, monitorDelayMs) {
       const monitorIndex = typeof client.monitorIndex === 'number' ? client.monitorIndex : index;
       const executeAt = baseTime + (monitorIndex * stepDelay);
 
+      // Extract specific action code for THIS monitor from the 1-second Shift Queue
+      const monitorSpecificAction = monitorsArr[monitorIndex] !== undefined ? monitorsArr[monitorIndex] : null;
+
       const scheduledPayload = {
         type: 'state',
         scheduledType: 'scheduled_state',
         monitorIndex: monitorIndex,
-        currentMonitorAction: Array.isArray(stateData.monitors) ? stateData.monitors[monitorIndex] : null,
         executeAt: executeAt,
         delayMs: stepDelay,
-        ...stateData
+        ...stateData,
+        // Override 'action' so each monitor gets ONLY its designated queue value!
+        action: monitorSpecificAction,
+        currentMonitorAction: monitorSpecificAction,
+        globalAction: stateData.action
       };
 
       client.send(JSON.stringify(scheduledPayload));
@@ -59,6 +66,7 @@ function broadcastScheduled(stateData, monitorDelayMs) {
     }
   });
 }
+
 
 
 // HTTP POST endpoint for state updates
@@ -96,8 +104,21 @@ app.post('/api/state', (req, res) => {
 
 // HTTP GET endpoint to retrieve the latest state
 app.get('/api/state', (req, res) => {
-  res.json(latestState);
+  const mons = Array.isArray(latestState.monitors) ? latestState.monitors : [latestState.action, null, null, null, null, null, null];
+  res.json({
+    ...latestState,
+    monitorActions: {
+      "0": mons[0] !== undefined ? mons[0] : null,
+      "1": mons[1] !== undefined ? mons[1] : null,
+      "2": mons[2] !== undefined ? mons[2] : null,
+      "3": mons[3] !== undefined ? mons[3] : null,
+      "4": mons[4] !== undefined ? mons[4] : null,
+      "5": mons[5] !== undefined ? mons[5] : null,
+      "6": mons[6] !== undefined ? mons[6] : null
+    }
+  });
 });
+
 
 server.on('upgrade', (request, socket, head) => {
   if (request.url === '/ws') {
