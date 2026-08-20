@@ -1,6 +1,144 @@
 // --- DOM Elements ---
 const canvas = document.getElementById('control-canvas');
 const ctx = canvas.getContext('2d');
+const glCanvas = document.getElementById('gl-canvas');
+let gl = null;
+let glProgram = null;
+let glUniforms = {};
+
+function initWebGLShader() {
+  if (!glCanvas) return;
+  gl = glCanvas.getContext('webgl') || glCanvas.getContext('experimental-webgl');
+  if (!gl) {
+    console.warn("WebGL not supported on this browser.");
+    return;
+  }
+
+  const vsSource = `
+    attribute vec2 a_position;
+    void main() {
+      gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+  `;
+
+  const fsSource = `
+    precision highp float;
+    uniform vec2 u_resolution;
+    uniform vec2 u_cursor;
+    uniform float u_time;
+    uniform float u_rotation;
+    uniform float u_action;
+
+    vec3 palette( in float t ) {
+      vec3 a = vec3(0.5, 0.5, 0.5);
+      vec3 b = vec3(0.5, 0.5, 0.5);
+      vec3 c = vec3(1.0, 1.0, 1.0);
+      vec3 d = vec3(0.263, 0.416, 0.557);
+      return a + b * cos(6.28318 * (c * t + d));
+    }
+
+    void main() {
+      vec2 uv = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / min(u_resolution.x, u_resolution.y);
+      vec2 cursorUV = (u_cursor * 2.0 - 1.0);
+      cursorUV.y = -cursorUV.y;
+
+      float rotRad = u_rotation * 0.01745329;
+      float distToCursor = length(uv - cursorUV);
+
+      vec3 finalColor = vec3(0.02, 0.03, 0.07);
+      vec2 uv0 = uv;
+      vec2 p = uv - cursorUV;
+
+      float angleShift = rotRad;
+
+      for (float i = 0.0; i < 3.0; i++) {
+        uv = fract(uv * 1.5) - 0.5;
+
+        float d = length(uv) * exp(-length(uv0));
+        vec3 col = palette(length(uv0) + i * 0.4 + u_time * 0.12 + angleShift * 0.15);
+
+        d = sin(d * 8.0 + u_time * 1.5 + angleShift) / 8.0;
+        d = abs(d);
+        d = pow(0.01 / d, 1.2);
+
+        finalColor += col * d;
+      }
+
+      // Cursor aura glow
+      float auraGlow = exp(-distToCursor * 3.2);
+      vec3 auraColor = palette(u_rotation / 360.0 + u_time * 0.05);
+      finalColor += auraColor * auraGlow * 1.5;
+
+      // Cyber Grid overlay
+      vec2 gridUV = gl_FragCoord.xy / 40.0;
+      float grid = step(0.97, fract(gridUV.x)) + step(0.97, fract(gridUV.y));
+      finalColor += vec3(0.0, 0.45, 0.85) * grid * 0.06;
+
+      gl_FragColor = vec4(finalColor, 1.0);
+    }
+  `;
+
+  function createShader(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(shader));
+      gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  }
+
+  const vs = createShader(gl.VERTEX_SHADER, vsSource);
+  const fs = createShader(gl.FRAGMENT_SHADER, fsSource);
+  if (!vs || !fs) return;
+
+  glProgram = gl.createProgram();
+  gl.attachShader(glProgram, vs);
+  gl.attachShader(glProgram, fs);
+  gl.linkProgram(glProgram);
+
+  const positionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    -1, -1,  1, -1, -1,  1,
+    -1,  1,  1, -1,  1,  1,
+  ]), gl.STATIC_DRAW);
+
+  const positionLocation = gl.getAttribLocation(glProgram, "a_position");
+  gl.enableVertexAttribArray(positionLocation);
+  gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+  glUniforms.resolution = gl.getUniformLocation(glProgram, "u_resolution");
+  glUniforms.cursor = gl.getUniformLocation(glProgram, "u_cursor");
+  glUniforms.time = gl.getUniformLocation(glProgram, "u_time");
+  glUniforms.rotation = gl.getUniformLocation(glProgram, "u_rotation");
+  glUniforms.action = gl.getUniformLocation(glProgram, "u_action");
+}
+
+function renderShader(normCursorX, normCursorY) {
+  if (!gl || !glProgram) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  if (glCanvas.width !== w || glCanvas.height !== h) {
+    glCanvas.width = w;
+    glCanvas.height = h;
+    gl.viewport(0, 0, w, h);
+  }
+
+  gl.useProgram(glProgram);
+
+  gl.uniform2f(glUniforms.resolution, w, h);
+  gl.uniform2f(glUniforms.cursor, normCursorX, normCursorY);
+  gl.uniform1f(glUniforms.time, performance.now() / 1000.0);
+  gl.uniform1f(glUniforms.rotation, state.rotation);
+  gl.uniform1f(glUniforms.action, state.action);
+
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
+
 const addressInput = document.getElementById('server-address');
 const intervalSlider = document.getElementById('tx-interval');
 const intervalVal = document.getElementById('interval-val');
@@ -8,6 +146,7 @@ const connectBtn = document.getElementById('connect-btn');
 const connectionBadge = document.getElementById('connection-badge');
 const clearTerminalBtn = document.getElementById('clear-terminal');
 const terminalBody = document.getElementById('terminal-body');
+
 
 // Telemetry Fields
 const telX = document.getElementById('tel-x');
@@ -1308,66 +1447,23 @@ function render() {
   const centerY = height / 2;
   const mapRadius = width / 2;
 
-  // 1. Draw Outer Square Frame Background & Grid
-  ctx.fillStyle = '#f8f9fa';
-  ctx.fillRect(0, 0, width, height);
+  // Translate coordinates from state [0..5000] to screen pixels
+  const screenX = (state.x / settings.canvasRangeX) * width;
+  const screenY = height - (state.y / settings.canvasRangeY) * height;
 
-  // Outer Grid Lines (Square Coordinate System 0..5000)
-  ctx.strokeStyle = '#e6e6e6';
-  ctx.lineWidth = 1;
-  for (let gx = 1000; gx < 5000; gx += 1000) {
-    const x = (gx / 5000) * width;
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-    ctx.stroke();
-  }
-  for (let gy = 1000; gy < 5000; gy += 1000) {
-    const y = (gy / 5000) * height;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-    ctx.stroke();
-  }
+  // 1. Render WebGL GLSL Shader Background & Ambient Aura
+  const normCursorX = state.x / settings.canvasRangeX;
+  const normCursorY = state.y / settings.canvasRangeY;
+  renderShader(normCursorX, normCursorY);
 
-  // Outer Square Boundary Box (Borders wrapping the circle)
-  ctx.strokeStyle = '#a0a0a0';
-  ctx.lineWidth = 2.0;
-  ctx.strokeRect(0, 0, width, height);
+  // 2. Clear 2D HUD Canvas with transparency so WebGL shader background shines through
+  ctx.clearRect(0, 0, width, height);
 
-  // 2. Draw Inscribed Circular Map Area
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, mapRadius, 0, Math.PI * 2);
-  ctx.clip();
-
-  // Circular Map White Background
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, width, height);
-
-  // Inner Circular Grid Lines
-  ctx.strokeStyle = '#eeeeee';
-  ctx.lineWidth = 1;
-  for (let gx = 1000; gx < 5000; gx += 1000) {
-    const x = (gx / 5000) * width;
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-    ctx.stroke();
-  }
-  for (let gy = 1000; gy < 5000; gy += 1000) {
-    const y = (gy / 5000) * height;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-    ctx.stroke();
-  }
-
-  // Draw Center-Based Distance Reference Circles (Dotted Polar Grid centered at screen center 2500, 2500)
-  ctx.strokeStyle = '#c7c7c7';
+  // Draw Center-Based Distance Reference Circles (Dotted Polar Grid)
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
   ctx.lineWidth = 0.8;
-  ctx.setLineDash([2, 4]); // Dotted circles
-  ctx.fillStyle = '#888888';
+  ctx.setLineDash([3, 5]); // Dotted circles
+  ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
   ctx.font = '10px "Fira Code", monospace';
   
   for (let r = 500; r <= 2500; r += 500) {
@@ -1382,6 +1478,7 @@ function render() {
     }
   }
   ctx.setLineDash([]); // Reset dash
+
 
   // Translate coordinates from state [0..5000] to screen pixels
   const screenX = (state.x / settings.canvasRangeX) * width;
@@ -1601,9 +1698,11 @@ function render() {
 }
 
 // Start everything
+initWebGLShader();
 addressInput.value = "https://position-api-generator.onrender.com/api/state";
 apiEndpoint = addressInput.value;
 
 setupConnection();
 requestAnimationFrame(mainLoop);
-logTerminal('success', 'Dot visualizer engine started.');
+logTerminal('success', 'WebGL Shader Screensaver Engine started.');
+

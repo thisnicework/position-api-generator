@@ -305,14 +305,16 @@
       <main class="visualizer-container">
         <div class="canvas-wrapper" style="position: relative;">
           <div id="toggle-menu-hint" class="menu-toggle-hint" title="Press 'S' key to toggle side menu">⌨️ Press 'S' to Hide Menu</div>
-          <canvas id="control-canvas"></canvas>
-          <div class="canvas-overlay">
+          <canvas id="gl-canvas" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index: 1;"></canvas>
+          <canvas id="control-canvas" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index: 2;"></canvas>
+          <div class="canvas-overlay" style="z-index: 3;">
             <span class="coordinate-marker label-bottom-left">(0,0)</span>
             <span class="coordinate-marker label-top-left">Y (5000)</span>
             <span class="coordinate-marker label-bottom-right">X (5000)</span>
             <span class="coordinate-marker label-top-right">(5000,5000)</span>
           </div>
         </div>
+
 
 
         <!-- Terminal Logs -->

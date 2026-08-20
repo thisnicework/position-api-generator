@@ -1,19 +1,19 @@
-/* MATLAB-style Light Theme CSS */
+/* Futuristic Cyberpunk Dark Screensaver Theme CSS */
 :root {
-  --bg-primary: #eef1f6;       /* MATLAB desktop gray background */
-  --bg-secondary: #ffffff;     /* White panels */
-  --bg-tertiary: #f4f5f8;      /* Light gray headers/sidebar sections */
-  --text-main: #000000;        /* Clear black text */
-  --text-muted: #5a5a5a;       /* Dark gray for descriptions */
-  --accent-cyan: #0072bd;      /* MATLAB Default Blue */
-  --accent-green: #77ac30;     /* MATLAB Default Green */
-  --accent-red: #a2142f;       /* MATLAB Default Dark Red */
-  --accent-orange: #d95319;    /* MATLAB Default Orange */
-  --accent-purple: #7e2f8e;    /* MATLAB Default Purple */
-  --border-color: #c3c3c3;     /* Classical grid border */
-  --border-active: #0072bd;    /* Active blue border */
-  --shadow-glow: 0 0 4px rgba(0, 114, 189, 0.3);
-  --transition-speed: 0.15s;
+  --bg-primary: #030712;       /* Deep space cosmic dark */
+  --bg-secondary: rgba(13, 20, 36, 0.85);     /* Glassmorphic dark panel */
+  --bg-tertiary: rgba(10, 16, 30, 0.7);      /* Dark glass headers */
+  --text-main: #f0f4fc;        /* Crisp neon white */
+  --text-muted: #94a3b8;       /* Slate gray text */
+  --accent-cyan: #38bdf8;      /* Neon Cyan */
+  --accent-green: #4ade80;     /* Neon Green */
+  --accent-red: #f87171;       /* Neon Red */
+  --accent-orange: #fb923c;    /* Neon Orange */
+  --accent-purple: #c084fc;    /* Neon Purple */
+  --border-color: rgba(255, 255, 255, 0.12); /* Subtle glass border */
+  --border-active: #38bdf8;    /* Neon cyan active border */
+  --shadow-glow: 0 0 15px rgba(56, 189, 248, 0.35);
+  --transition-speed: 0.25s;
 }
 
 * {
@@ -25,68 +25,76 @@
 body {
   background-color: var(--bg-primary);
   color: var(--text-main);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow: hidden;
   height: 100vh;
+  width: 100vw;
 }
 
-/* Container */
+/* Fullscreen App Container */
 .app-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  padding: 12px;
-  max-width: 1600px;
-  margin: 0 auto;
 }
 
-/* Header (MATLAB Menu Bar Style) */
+/* Floating Glass Header */
 .header {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 50;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 8px 18px;
+  background: rgba(10, 16, 30, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .logo-area {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .logo-area h1 {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 16px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
   font-weight: 700;
-  color: #333333;
+  color: #f8fafc;
+  letter-spacing: 1px;
 }
 
-/* Visual MATLAB Logo Accent */
+/* Pulsing Neon Dot */
 .pulse-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background-color: var(--accent-orange);
-  box-shadow: 0 0 4px var(--accent-orange);
-  animation: pulse 2.5s infinite;
+  background-color: #38bdf8;
+  box-shadow: 0 0 10px #38bdf8, 0 0 20px #38bdf8;
+  animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-  0% { transform: scale(0.95); opacity: 0.6; }
-  50% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.6; }
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.7; }
 }
 
 .system-status {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 10px;
+  font-size: 12px;
 }
 
 .status-label {
@@ -96,70 +104,87 @@ body {
 .badge {
   font-size: 10px;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 3px;
+  padding: 3px 10px;
+  border-radius: 20px;
   letter-spacing: 0.5px;
+  font-family: 'Fira Code', monospace;
 }
 
 .badge-disconnected {
-  background-color: #fce4e4;
-  color: var(--accent-red);
-  border: 1px solid #f5c2c2;
+  background-color: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.4);
 }
 
 .badge-connected {
-  background-color: #ebf7e3;
-  color: #3e6b12;
-  border: 1px solid #cce8b5;
+  background-color: rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.4);
 }
 
-/* Main Grid Layout */
+/* Floating Fullscreen Visualizer Main Container */
 .main-grid {
-  display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 12px;
-  flex: 1;
-  min-height: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
 }
 
-/* Left Control Panel */
+/* Floating Glass Control Panel Drawer */
 .control-panel {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  bottom: 12px;
+  width: 360px;
+  z-index: 40;
   display: flex;
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
   padding-right: 4px;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+}
+
+.main-grid.hide-controls .control-panel {
+  transform: translateX(-390px);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .control-panel::-webkit-scrollbar {
   width: 5px;
 }
 .control-panel::-webkit-scrollbar-thumb {
-  background: #cccccc;
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
 }
 
 .panel-section {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
+  background: rgba(13, 20, 36, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
   padding: 12px 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
 .panel-section h2 {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 12px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
   font-weight: 700;
-  color: #333333;
+  color: #38bdf8;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   margin-bottom: 8px;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding-bottom: 4px;
 }
 
-/* Form Styling */
+/* Form Inputs */
 .form-group {
   margin-bottom: 8px;
 }
@@ -167,49 +192,31 @@ body {
 .form-group label {
   display: block;
   font-size: 11px;
-
   font-weight: 600;
-  color: var(--text-muted);
+  color: #cbd5e1;
   margin-bottom: 4px;
 }
 
 .form-group select,
 .form-group input[type="text"],
-.form-group input[type="password"] {
+.form-group input[type="number"] {
   width: 100%;
-  background-color: #ffffff;
-  border: 1px solid var(--border-color);
-  border-radius: 3px;
-  color: var(--text-main);
-  padding: 8px 10px;
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color var(--transition-speed);
+  background: rgba(15, 23, 42, 0.9);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
 }
 
-.form-group select:focus,
-.form-group input[type="text"]:focus,
-.form-group input[type="password"]:focus {
-  border-color: var(--accent-cyan);
-  box-shadow: var(--shadow-glow);
-}
-
-/* Range Input */
 .range-container {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .range-container input[type="range"] {
   flex: 1;
-  accent-color: var(--accent-cyan);
-  height: 4px;
-  background-color: #e0e0e0;
-}
-
-#frequency-val {
   min-width: 45px;
   font-weight: 600;
   color: var(--accent-cyan);
