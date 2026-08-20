@@ -168,16 +168,17 @@ function parseSerialLine(line) {
       const v2 = parseFloat(parts[1]);
       const v3 = parseFloat(parts[2]);
       if (!isNaN(v1) && !isNaN(v2) && !isNaN(v3)) {
-        // Default to X, Rotation, Y (matching user hardware: 508, 10, 179)
-        x = v1;
+        // Default to Y, Rotation, X (1:Y, 2:Rotation, 3:X) -> Swapped X and Y
+        y = v1;
         rotation = v2;
-        y = v3;
+        x = v3;
         if (parts.length >= 4 && !isNaN(parseInt(parts[3]))) {
           action = parseInt(parts[3], 10);
         }
       }
     }
   }
+
 
 
   if (x !== null && y !== null && rotation !== null) {

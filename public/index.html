@@ -114,10 +114,13 @@
             <div class="form-group" style="margin-bottom: 8px;">
               <label for="serial-order">Serial Data Order (수신 값 순서)</label>
               <select id="serial-order">
-                <option value="xry" selected>X, Rotation, Y (1:X, 2:각도, 3:Y)</option>
+                <option value="yrx" selected>Y, Rotation, X (1:Y, 2:각도, 3:X) [추천]</option>
+                <option value="xry">X, Rotation, Y (1:X, 2:각도, 3:Y)</option>
+                <option value="yxr">Y, X, Rotation (1:Y, 2:X, 3:각도)</option>
                 <option value="xyr">X, Y, Rotation (1:X, 2:Y, 3:각도)</option>
               </select>
             </div>
+
 
             <!-- Interactive Zero-Point Calibration Section -->
             <div id="calibration-controls" style="background: #f4f8fb; border: 1px solid #cce0f0; padding: 10px; border-radius: 4px; margin-bottom: 8px;">

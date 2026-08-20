@@ -314,14 +314,24 @@ function parseSerialString(rawText) {
       const v2 = parseFloat(parts[1]);
       const v3 = parseFloat(parts[2]);
       if (!isNaN(v1) && !isNaN(v2) && !isNaN(v3)) {
-        const order = serialOrderSelect ? serialOrderSelect.value : 'xry';
-        if (order === 'xry') {
-          // X, Rotation, Y (e.g. 508, 10, 179 -> X=508, Rot=10, Y=179)
+        const order = serialOrderSelect ? serialOrderSelect.value : 'yrx';
+        if (order === 'yrx') {
+          // Y, Rotation, X (1:Y, 2:Rotation, 3:X) -> X and Y Swapped!
+          y = v1;
+          rotation = v2;
+          x = v3;
+        } else if (order === 'xry') {
+          // X, Rotation, Y (1:X, 2:Rotation, 3:Y)
           x = v1;
           rotation = v2;
           y = v3;
+        } else if (order === 'yxr') {
+          // Y, X, Rotation (1:Y, 2:X, 3:Rotation)
+          y = v1;
+          x = v2;
+          rotation = v3;
         } else {
-          // X, Y, Rotation (e.g. 508, 179, 10 -> X=508, Y=179, Rot=10)
+          // X, Y, Rotation (1:X, 2:Y, 3:Rotation)
           x = v1;
           y = v2;
           rotation = v3;
@@ -332,6 +342,7 @@ function parseSerialString(rawText) {
       }
     }
   }
+
 
 
   if (x !== null && y !== null && rotation !== null) {
