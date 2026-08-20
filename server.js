@@ -158,23 +158,25 @@ function parseSerialLine(line) {
     if (aMatch) action = parseInt(aMatch[1], 10);
   }
 
-  // 3. Try CSV format: 2500, 2500, 90 or 2500,2500,90,3
+  // 3. Try CSV format: 508, 10, 179 or 2500, 2500, 90
   if (x === null || y === null || rotation === null) {
     const parts = trimmed.split(/[\s,]+/).filter(Boolean);
     if (parts.length >= 3) {
-      const pX = parseFloat(parts[0]);
-      const pY = parseFloat(parts[1]);
-      const pR = parseFloat(parts[2]);
-      if (!isNaN(pX) && !isNaN(pY) && !isNaN(pR)) {
-        x = pX;
-        y = pY;
-        rotation = pR;
+      const v1 = parseFloat(parts[0]);
+      const v2 = parseFloat(parts[1]);
+      const v3 = parseFloat(parts[2]);
+      if (!isNaN(v1) && !isNaN(v2) && !isNaN(v3)) {
+        // Default to X, Rotation, Y (matching user hardware: 508, 10, 179)
+        x = v1;
+        rotation = v2;
+        y = v3;
         if (parts.length >= 4 && !isNaN(parseInt(parts[3]))) {
           action = parseInt(parts[3], 10);
         }
       }
     }
   }
+
 
   if (x !== null && y !== null && rotation !== null) {
     x = Math.max(0, Math.min(5000, x));

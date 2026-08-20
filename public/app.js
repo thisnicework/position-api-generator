@@ -32,8 +32,10 @@ const nodeConnectBtn = document.getElementById('node-connect-btn');
 const nodeDisconnectBtn = document.getElementById('node-disconnect-btn');
 
 const serialControlTypeSelect = document.getElementById('serial-control-type');
+const serialOrderSelect = document.getElementById('serial-order');
 const serialAnalogMapCheckbox = document.getElementById('serial-analog-map');
 const serialRawValSpan = document.getElementById('serial-raw-val');
+
 
 const calibXInput = document.getElementById('calib-x');
 const calibYInput = document.getElementById('calib-y');
@@ -284,23 +286,33 @@ function parseSerialString(rawText) {
     if (aMatch) action = parseInt(aMatch[1], 10);
   }
 
-  // 3. CSV Format: 2500, 2500, 90 or 2500,2500,90,3
+  // 3. CSV Format: 508, 10, 179 or 2500, 2500, 90
   if (x === null || y === null || rotation === null) {
     const parts = trimmed.split(/[\s,]+/).filter(Boolean);
     if (parts.length >= 3) {
-      const pX = parseFloat(parts[0]);
-      const pY = parseFloat(parts[1]);
-      const pR = parseFloat(parts[2]);
-      if (!isNaN(pX) && !isNaN(pY) && !isNaN(pR)) {
-        x = pX;
-        y = pY;
-        rotation = pR;
+      const v1 = parseFloat(parts[0]);
+      const v2 = parseFloat(parts[1]);
+      const v3 = parseFloat(parts[2]);
+      if (!isNaN(v1) && !isNaN(v2) && !isNaN(v3)) {
+        const order = serialOrderSelect ? serialOrderSelect.value : 'xry';
+        if (order === 'xry') {
+          // X, Rotation, Y (e.g. 508, 10, 179 -> X=508, Rot=10, Y=179)
+          x = v1;
+          rotation = v2;
+          y = v3;
+        } else {
+          // X, Y, Rotation (e.g. 508, 179, 10 -> X=508, Y=179, Rot=10)
+          x = v1;
+          y = v2;
+          rotation = v3;
+        }
         if (parts.length >= 4 && !isNaN(parseInt(parts[3]))) {
           action = parseInt(parts[3], 10);
         }
       }
     }
   }
+
 
   if (x !== null && y !== null && rotation !== null) {
     // Optional Analog ADC (0~1023) mapping

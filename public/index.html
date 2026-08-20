@@ -110,6 +110,14 @@
               </select>
             </div>
 
+            <div class="form-group" style="margin-bottom: 8px;">
+              <label for="serial-order">Serial Data Order (수신 값 순서)</label>
+              <select id="serial-order">
+                <option value="xry" selected>X, Rotation, Y (1:X, 2:각도, 3:Y)</option>
+                <option value="xyr">X, Y, Rotation (1:X, 2:Y, 3:각도)</option>
+              </select>
+            </div>
+
             <!-- Zero-Point Calibration Section -->
             <div id="calibration-controls" style="background: #f8f9fa; border: 1px solid #e0e0e0; padding: 8px; border-radius: 3px; margin-bottom: 8px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -123,11 +131,11 @@
                 </div>
                 <div>
                   <label for="calib-y" style="font-size: 9px; display: block; color: var(--text-muted);">Center Y</label>
-                  <input type="number" id="calib-y" value="10" style="width: 100%; font-size: 11px; padding: 2px 4px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
+                  <input type="number" id="calib-y" value="179" style="width: 100%; font-size: 11px; padding: 2px 4px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
                 </div>
                 <div>
                   <label for="calib-rot" style="font-size: 9px; display: block; color: var(--text-muted);">Center Rot</label>
-                  <input type="number" id="calib-rot" value="179" style="width: 100%; font-size: 11px; padding: 2px 4px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
+                  <input type="number" id="calib-rot" value="10" style="width: 100%; font-size: 11px; padding: 2px 4px; font-family: monospace; border: 1px solid #ccc; border-radius: 2px;">
                 </div>
               </div>
             </div>
