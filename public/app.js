@@ -439,20 +439,21 @@ function processIncomingSerialLine(line) {
     let normY = 0;
     let normRot = 0;
 
-    // 1. Calculate X displacement relative to resting zero-point (-1.0 ~ +1.0)
+    // 1. Calculate X displacement relative to resting zero-point (Symmetric 60-unit span)
     const diffX = parsed.x - centerX;
-    normX = diffX > 0 ? (diffX / Math.max(10, 1023 - centerX)) : (diffX / Math.max(10, centerX));
+    normX = diffX / 60.0;
     if (invertX) normX = -normX;
 
-    // 2. Calculate Y displacement relative to resting zero-point (-1.0 ~ +1.0)
+    // 2. Calculate Y displacement relative to resting zero-point (Symmetric 60-unit span)
     const diffY = parsed.y - centerY;
-    normY = diffY > 0 ? (diffY / Math.max(10, 1023 - centerY)) : (diffY / Math.max(10, centerY));
+    normY = diffY / 60.0;
     if (invertY) normY = -normY;
 
-    // 3. Calculate Rotation displacement (Game Joystick Rotation - 12° tilt = 100% max speed!)
+    // 3. Calculate Rotation displacement (Symmetric 5° tilt = 100% max speed in BOTH CW and CCW!)
     let diffRot = getCircularDiff(parsed.rotation, centerRot);
-    normRot = diffRot / 12.0;
+    normRot = diffRot / 5.0;
     if (invertRot) normRot = -normRot;
+
 
     // Clamp normalized values to [-1.0, +1.0]
     normX = Math.max(-1.0, Math.min(1.0, normX));
