@@ -1,8 +1,7 @@
-/* Futuristic Cyberpunk Dark Screensaver Theme CSS */
 :root {
-  --bg-primary: #030712;       /* Deep space cosmic dark */
-  --bg-secondary: rgba(13, 20, 36, 0.85);     /* Glassmorphic dark panel */
-  --bg-tertiary: rgba(10, 16, 30, 0.7);      /* Dark glass headers */
+  --bg-primary: #000000;       /* Pure pitch black background */
+  --bg-secondary: rgba(10, 14, 26, 0.88);    /* Glassmorphic dark panel */
+  --bg-tertiary: rgba(5, 8, 18, 0.85);      /* Dark glass headers */
   --text-main: #f0f4fc;        /* Crisp neon white */
   --text-muted: #94a3b8;       /* Slate gray text */
   --accent-cyan: #38bdf8;      /* Neon Cyan */
@@ -23,7 +22,7 @@
 }
 
 body {
-  background-color: var(--bg-primary);
+  background-color: #000000;
   color: var(--text-main);
   font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow: hidden;
@@ -36,8 +35,10 @@ body {
   position: relative;
   width: 100vw;
   height: 100vh;
+  background-color: #000000;
   overflow: hidden;
 }
+
 
 /* Floating Glass Header */
 .header {
@@ -342,10 +343,11 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  background: #030712;
+  background: #000000;
   border: none;
   box-shadow: none;
 }
+
 
 #gl-canvas, #control-canvas {
   width: 100vw;

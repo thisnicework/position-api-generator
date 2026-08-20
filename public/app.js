@@ -47,41 +47,25 @@ function initWebGLShader() {
       vec2 cursorUV = (u_cursor * 2.0 - 1.0);
       cursorUV.y = -cursorUV.y;
 
-      float rotRad = u_rotation * 0.01745329;
       float distToCursor = length(uv - cursorUV);
 
-      vec3 finalColor = vec3(0.02, 0.03, 0.07);
-      vec2 uv0 = uv;
+      // Pure Pitch Black Background (#000000)
+      vec3 finalColor = vec3(0.0, 0.0, 0.0);
 
-      float angleShift = rotRad;
-
-      for (float i = 0.0; i < 3.0; i++) {
-        uv = fract(uv * 1.5) - 0.5;
-
-        float d = length(uv) * exp(-length(uv0));
-        vec3 col = palette(length(uv0) + i * 0.4 + u_time * 0.12 + angleShift * 0.15);
-
-        d = sin(d * 8.0 + u_time * 1.5 + angleShift) / 8.0;
-        d = abs(d) + 0.001;
-        float val = clamp(0.01 / d, 0.0, 10.0);
-        d = pow(val, 1.2);
-
-        finalColor += col * d;
-      }
-
-      // Cursor aura glow
-      float auraGlow = exp(-distToCursor * 3.2);
+      // High-contrast cursor glowing ambient aura on pure black
+      float auraGlow = exp(-distToCursor * 2.5);
       vec3 auraColor = palette(u_rotation / 360.0 + u_time * 0.05);
-      finalColor += auraColor * auraGlow * 1.5;
+      finalColor += auraColor * auraGlow * 0.7;
 
-      // Cyber Grid overlay
-      vec2 gridUV = gl_FragCoord.xy / 40.0;
-      float grid = step(0.97, fract(gridUV.x)) + step(0.97, fract(gridUV.y));
-      finalColor += vec3(0.0, 0.45, 0.85) * grid * 0.06;
+      // Subtle Cyber Grid overlay
+      vec2 gridUV = gl_FragCoord.xy / 50.0;
+      float grid = step(0.98, fract(gridUV.x)) + step(0.98, fract(gridUV.y));
+      finalColor += vec3(0.0, 0.45, 0.85) * grid * 0.04;
 
       gl_FragColor = vec4(finalColor, 1.0);
     }
   `;
+
 
   function createShader(type, source) {
     const shader = gl.createShader(type);
@@ -1523,9 +1507,10 @@ function render() {
     renderShader(normCursorX, normCursorY);
     ctx.clearRect(0, 0, width, height);
   } else {
-    // 2D Fallback Dark Cosmic Background & Neon Grid
-    ctx.fillStyle = '#030712';
+    // 2D Fallback Pure Pitch Black Background (#000000)
+    ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
+
 
     ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
     ctx.lineWidth = 1;
@@ -1656,55 +1641,77 @@ function render() {
     ctx.fillText(`d=${distFromCenter.toFixed(0)}`, midX + 6, midY - 4);
   }
 
-  // Update macOS pinwheel spin angle and rainbow trail afterimage
-  pinwheelSpinAngle = (pinwheelSpinAngle + 4) % 360;
+  // Update macOS pinwheel spin angle and continuous rainbow trail afterimage
+  pinwheelSpinAngle = (pinwheelSpinAngle + 5) % 360;
   const nowTime = Date.now();
   const currentHue = ((state.rotation % 360) + 360) % 360;
 
-  // Record trail frame sample
-  rainbowTrails.push({
-    x: screenX,
-    y: screenY,
-    rotation: state.rotation,
-    hue: currentHue,
-    time: nowTime
-  });
+  // Sub-pixel continuous trail recording (no gaps when moving fast!)
+  const lastTrailPt = rainbowTrails[rainbowTrails.length - 1];
+  if (lastTrailPt) {
+    const dist = Math.hypot(screenX - lastTrailPt.x, screenY - lastTrailPt.y);
+    const rotDiff = Math.abs(state.rotation - lastTrailPt.rotation);
+    const steps = Math.min(30, Math.max(1, Math.floor(Math.max(dist / 3, rotDiff / 4))));
 
-  // Clean old trail points (> 1500ms)
-  while (rainbowTrails.length > 0 && nowTime - rainbowTrails[0].time > 1500) {
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      const subX = lastTrailPt.x + (screenX - lastTrailPt.x) * t;
+      const subY = lastTrailPt.y + (screenY - lastTrailPt.y) * t;
+      const subRot = lastTrailPt.rotation + (state.rotation - lastTrailPt.rotation) * t;
+      const subHue = ((subRot % 360) + 360) % 360;
+      const subTime = lastTrailPt.time + (nowTime - lastTrailPt.time) * t;
+      rainbowTrails.push({ x: subX, y: subY, rotation: subRot, hue: subHue, time: subTime });
+    }
+  } else {
+    rainbowTrails.push({ x: screenX, y: screenY, rotation: state.rotation, hue: currentHue, time: nowTime });
+  }
+
+  // Clean old trail points (> 1800ms for continuous rich tail)
+  const TRAIL_LIFETIME = 1800;
+  while (rainbowTrails.length > 0 && nowTime - rainbowTrails[0].time > TRAIL_LIFETIME) {
     rainbowTrails.shift();
   }
 
-  // Render Rainbow Rotation Afterimage Trails (잔상 효과)
-  for (let i = 0; i < rainbowTrails.length; i++) {
-    const tr = rainbowTrails[i];
-    const age = nowTime - tr.time;
-    const life = Math.max(0, 1 - age / 1500);
-    const alpha = life * 0.75;
-    const r = 12 + (1 - life) * 10;
-
+  // Render Continuous Glowing Rainbow Neon Ribbon Tail (연속적인 무지개 잔상 띠)
+  if (rainbowTrails.length > 1) {
     ctx.save();
-    ctx.translate(tr.x, tr.y);
-    ctx.rotate((tr.rotation * Math.PI) / 180);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    ctx.fillStyle = `hsla(${tr.hue}, 100%, 60%, ${alpha * 0.35})`;
-    ctx.beginPath();
-    ctx.arc(0, 0, r + 4, 0, Math.PI * 2);
-    ctx.fill();
+    for (let i = 0; i < rainbowTrails.length - 1; i++) {
+      const p1 = rainbowTrails[i];
+      const p2 = rainbowTrails[i + 1];
+      const age = nowTime - p1.time;
+      const life = Math.max(0, 1 - age / TRAIL_LIFETIME);
+      const alpha = life * 0.85;
 
-    ctx.strokeStyle = `hsla(${tr.hue}, 100%, 50%, ${alpha})`;
-    ctx.lineWidth = 2.5 * life;
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.stroke();
+      // Outer Glowing Rainbow Ribbon
+      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 55%, ${alpha * 0.45})`;
+      ctx.lineWidth = 22 * life;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
 
-    ctx.fillStyle = `hsla(${tr.hue}, 100%, 70%, ${alpha * 0.9})`;
-    ctx.beginPath();
-    ctx.arc(0, 0, 4 * life, 0, Math.PI * 2);
-    ctx.fill();
+      // Main Rainbow Neon Ribbon
+      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 65%, ${alpha})`;
+      ctx.lineWidth = 12 * life;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
 
+      // Core White Highlight Ribbon
+      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 90%, ${alpha * 0.95})`;
+      ctx.lineWidth = 3.5 * life;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    }
     ctx.restore();
   }
+
 
   // Render macOS Spinning Rainbow Pinwheel Cursor at (screenX, screenY)
   ctx.save();
