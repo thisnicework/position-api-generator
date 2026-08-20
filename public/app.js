@@ -183,8 +183,10 @@ const calibMinYInput = document.getElementById('calib-min-y');
 const calibYInput = document.getElementById('calib-y');
 const calibMaxYInput = document.getElementById('calib-max-y');
 
+const calibMinRotInput = document.getElementById('calib-min-rot');
 const calibRotInput = document.getElementById('calib-rot');
-const calibRotSpanInput = document.getElementById('calib-rot-span');
+const calibMaxRotInput = document.getElementById('calib-max-rot');
+
 
 
 const calibStatusTag = document.getElementById('calib-status-tag');
@@ -721,8 +723,9 @@ function processIncomingSerialLine(line) {
     const centerY = calibYInput ? (parseFloat(calibYInput.value) || 179) : 179;
     const maxY = calibMaxYInput ? (parseFloat(calibMaxYInput.value) || 1023) : 1023;
 
+    const minRotSpan = calibMinRotInput ? (parseFloat(calibMinRotInput.value) || 25) : 25;
     const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 10) : 10;
-    const rotSpan = calibRotSpanInput ? (parseFloat(calibRotSpanInput.value) || 25) : 25;
+    const maxRotSpan = calibMaxRotInput ? (parseFloat(calibMaxRotInput.value) || 25) : 25;
 
     const invertX = serialInvertXCheckbox ? serialInvertXCheckbox.checked : false;
     const invertY = serialInvertYCheckbox ? serialInvertYCheckbox.checked : false;
@@ -752,10 +755,15 @@ function processIncomingSerialLine(line) {
     }
     if (invertY) normY = -normY;
 
-    // Rotation: Symmetrical deflection normalization (-1.0 ~ +1.0)
+    // Rotation: Piecewise deflection normalization (-1.0 ~ +1.0)
     let diffRot = getCircularDiff(smoothRot, centerRot);
-    normRot = diffRot / Math.max(5, rotSpan);
+    if (diffRot > 0) {
+      normRot = diffRot / Math.max(5, maxRotSpan);
+    } else {
+      normRot = diffRot / Math.max(5, minRotSpan);
+    }
     if (invertRot) normRot = -normRot;
+
 
     // Clamp to [-1.0, +1.0]
     normX = Math.max(-1.0, Math.min(1.0, normX));
@@ -1113,17 +1121,25 @@ function finish3sCalibration() {
   // Compute observed Min & Max across all samples
   let minObsX = calibSamples[0].x, maxObsX = calibSamples[0].x;
   let minObsY = calibSamples[0].y, maxObsY = calibSamples[0].y;
-  let maxDeflectionRot = 15;
+  let maxCcwDeflection = 15;
+  let maxCwDeflection = 15;
 
   calibSamples.forEach(s => {
     minObsX = Math.min(minObsX, s.x);
     maxObsX = Math.max(maxObsX, s.x);
     minObsY = Math.min(minObsY, s.y);
     maxObsY = Math.max(maxObsY, s.y);
-    const dR = Math.abs(getCircularDiff(s.rot, avgRot));
-    maxDeflectionRot = Math.max(maxDeflectionRot, dR);
+
+    const dR = getCircularDiff(s.rot, avgRot);
+    if (dR > 0) {
+      maxCwDeflection = Math.max(maxCwDeflection, dR);
+    } else {
+      maxCcwDeflection = Math.max(maxCcwDeflection, Math.abs(dR));
+    }
   });
-  maxDeflectionRot = Math.max(15, Math.min(180, Math.round(maxDeflectionRot)));
+
+  maxCcwDeflection = Math.max(10, Math.min(180, Math.round(maxCcwDeflection)));
+  maxCwDeflection = Math.max(10, Math.min(180, Math.round(maxCwDeflection)));
 
   if (calibMinXInput) calibMinXInput.value = minObsX;
   if (calibXInput) calibXInput.value = avgX;
@@ -1133,8 +1149,9 @@ function finish3sCalibration() {
   if (calibYInput) calibYInput.value = avgY;
   if (calibMaxYInput) calibMaxYInput.value = maxObsY;
 
+  if (calibMinRotInput) calibMinRotInput.value = maxCcwDeflection;
   if (calibRotInput) calibRotInput.value = avgRot;
-  if (calibRotSpanInput) calibRotSpanInput.value = maxDeflectionRot;
+  if (calibMaxRotInput) calibMaxRotInput.value = maxCwDeflection;
 
   localStorage.setItem('5hz_calib_min_x', minObsX);
   localStorage.setItem('5hz_calib_x', avgX);
@@ -1144,8 +1161,9 @@ function finish3sCalibration() {
   localStorage.setItem('5hz_calib_y', avgY);
   localStorage.setItem('5hz_calib_max_y', maxObsY);
 
+  localStorage.setItem('5hz_calib_min_rot', maxCcwDeflection);
   localStorage.setItem('5hz_calib_rot', avgRot);
-  localStorage.setItem('5hz_calib_rot_span', maxDeflectionRot);
+  localStorage.setItem('5hz_calib_max_rot', maxCwDeflection);
 
   if (calibStatusTag) {
     calibStatusTag.textContent = 'DONE';
@@ -1160,7 +1178,7 @@ function finish3sCalibration() {
     start3sCalibBtn.textContent = '⏱️ 5s Auto Learn';
   }
 
-  logTerminal('success', `✅ 5s Range Calibration Complete! Center: (${avgX}, ${avgY}, ${avgRot}) | Rot Span: ±${maxDeflectionRot}°`);
+  logTerminal('success', `✅ 5s Range Calibration Complete! Center: (${avgX}, ${avgY}, ${avgRot}) | Rot Span: CCW -${maxCcwDeflection}°, CW +${maxCwDeflection}°`);
 }
 
 function loadSavedCalibration() {
@@ -1172,8 +1190,9 @@ function loadSavedCalibration() {
   const savedY = localStorage.getItem('5hz_calib_y');
   const savedMaxY = localStorage.getItem('5hz_calib_max_y');
 
+  const savedMinRot = localStorage.getItem('5hz_calib_min_rot');
   const savedRot = localStorage.getItem('5hz_calib_rot');
-  const savedRotSpan = localStorage.getItem('5hz_calib_rot_span');
+  const savedMaxRot = localStorage.getItem('5hz_calib_max_rot');
 
   if (savedMinX && calibMinXInput) calibMinXInput.value = savedMinX;
   if (savedX && calibXInput) calibXInput.value = savedX;
@@ -1183,9 +1202,11 @@ function loadSavedCalibration() {
   if (savedY && calibYInput) calibYInput.value = savedY;
   if (savedMaxY && calibMaxYInput) calibMaxYInput.value = savedMaxY;
 
+  if (savedMinRot && calibMinRotInput) calibMinRotInput.value = savedMinRot;
   if (savedRot && calibRotInput) calibRotInput.value = savedRot;
-  if (savedRotSpan && calibRotSpanInput) calibRotSpanInput.value = savedRotSpan;
+  if (savedMaxRot && calibMaxRotInput) calibMaxRotInput.value = savedMaxRot;
 }
+
 
 
 if (start3sCalibBtn) {
