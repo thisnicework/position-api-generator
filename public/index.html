@@ -38,8 +38,14 @@
         <section class="panel-section">
           <h2>Configuration</h2>
           <div class="form-group">
-            <label for="server-address">Server Address</label>
-            <input type="text" id="server-address" value="https://position-api-generator.onrender.com/api/state">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label for="server-address" style="margin: 0;">Server Address</label>
+              <div>
+                <button id="btn-preset-local" class="btn btn-text" style="font-size: 10px; padding: 1px 4px;">Local</button>
+                <button id="btn-preset-render" class="btn btn-text" style="font-size: 10px; padding: 1px 4px;">Render</button>
+              </div>
+            </div>
+            <input type="text" id="server-address" value="http://localhost:5005/api/state">
           </div>
           <div class="form-group">
             <label for="tx-interval">TX Interval (ms)</label>

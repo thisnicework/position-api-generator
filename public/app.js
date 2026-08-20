@@ -350,7 +350,7 @@ function logSerialRX(parsed) {
 async function connectWebSerial() {
   if (!('serial' in navigator)) {
     logTerminal('error', 'Web Serial API is not supported in this browser. Please use Chrome/Edge or Server Serial.');
-    alert('Web Serial API is not supported in this browser. Please use Chrome or Edge.');
+    alert('Web Serial API는 Chrome 또는 Edge 브라우저에서만 지원됩니다! Safari/Firefox 사용 시 Server Serial 모드를 사용해 주세요.');
     return;
   }
 
@@ -367,7 +367,14 @@ async function connectWebSerial() {
     keepReadingSerial = true;
     readWebSerialStream();
   } catch (err) {
-    logTerminal('error', `Web Serial connect error: ${err.message}`);
+    if (err.name === 'NotFoundError' || (err.message && err.message.includes('selected'))) {
+      logTerminal('system', 'Web Serial port selection canceled.');
+    } else if (err.name === 'InvalidStateError' || (err.message && (err.message.includes('Failed to open') || err.message.includes('open')))) {
+      logTerminal('error', `Port open failed: ${err.message}. Is Arduino Serial Monitor open? Please close it first!`);
+      alert('시리얼 포트를 열 수 없습니다!\n\n아두이노 IDE의 시리얼 모니터(Serial Monitor)가 열려있다면 먼저 닫은 후 다시 시도해 주세요.');
+    } else {
+      logTerminal('error', `Web Serial connect error: ${err.message}`);
+    }
     updateSerialBadge('disconnected', 'OFFLINE');
   }
 }
@@ -1008,10 +1015,30 @@ function render() {
   ctx.restore();
 }
 
-// Start everything
-addressInput.value = "https://position-api-generator.onrender.com/api/state";
-apiEndpoint = addressInput.value;
+// Endpoint Presets
+const btnPresetLocal = document.getElementById('btn-preset-local');
+const btnPresetRender = document.getElementById('btn-preset-render');
+
+if (btnPresetLocal) {
+  btnPresetLocal.addEventListener('click', () => {
+    addressInput.value = 'http://localhost:5005/api/state';
+    setupConnection();
+  });
+}
+
+if (btnPresetRender) {
+  btnPresetRender.addEventListener('click', () => {
+    addressInput.value = 'https://position-api-generator.onrender.com/api/state';
+    setupConnection();
+  });
+}
+
+// Start everything with auto-detected default endpoint
+const localDefault = `${currentOrigin}/api/state`;
+addressInput.value = localDefault;
+apiEndpoint = localDefault;
 
 setupConnection();
 requestAnimationFrame(mainLoop);
 logTerminal('success', 'Dot visualizer engine started.');
+
