@@ -1423,14 +1423,9 @@ function updatePhysics() {
   if (keys.q || keys.Q) aRotation -= settings.rotationSpeed;
   if (keys.e || keys.E) aRotation += settings.rotationSpeed;
 
-  const controlMode = serialControlTypeSelect ? serialControlTypeSelect.value : 'joystick';
-  if (controlMode === 'joystick') {
-    // In Serial Joystick mode, vRotation is set continuously by joystick input - do not damp with friction
-    if (aRotation !== 0) state.vRotation += aRotation;
-  } else {
-    state.vRotation += aRotation;
-    state.vRotation *= settings.rotationFriction;
-  }
+  state.vRotation += aRotation;
+  state.vRotation *= settings.rotationFriction;
+
 
   // Limit rotation speed
   if (Math.abs(state.vRotation) > settings.maxRotationSpeed) {
