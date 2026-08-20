@@ -42,7 +42,8 @@ const calibYInput = document.getElementById('calib-y');
 const calibRotInput = document.getElementById('calib-rot');
 const autoCalibrateBtn = document.getElementById('auto-calibrate-btn');
 
-let lastRawSerialValues = { x: 508, y: 10, rot: 179 };
+let lastRawSerialValues = { x: 508, y: 179, rot: 10 };
+
 
 
 
@@ -352,10 +353,11 @@ function processIncomingSerialLine(line) {
   if (mode === 'joystick') {
     // 🎮 Joystick Game Movement Mode (게임 방식: 조이스틱 기울임 -> 이동 속도)
     
-    // Read zero-point baseline from inputs (Default: Center X=508, Y=10, Rot=179)
+    // Read zero-point baseline from inputs (Default: Center X=508, Y=179, Rot=10)
     const centerX = calibXInput ? (parseFloat(calibXInput.value) || 508) : 508;
-    const centerY = calibYInput ? (parseFloat(calibYInput.value) || 10) : 10;
-    const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 179) : 179;
+    const centerY = calibYInput ? (parseFloat(calibYInput.value) || 179) : 179;
+    const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 10) : 10;
+
 
     let normX = 0;
     let normY = 0;
@@ -657,6 +659,21 @@ if (autoCalibrateBtn) {
     logTerminal('success', `Calibrated Zero-Point to X:${Math.round(lastRawSerialValues.x)}, Y:${Math.round(lastRawSerialValues.y)}, Rot:${Math.round(lastRawSerialValues.rot)}`);
   });
 }
+
+if (serialOrderSelect) {
+  serialOrderSelect.addEventListener('change', (e) => {
+    if (e.target.value === 'xry') {
+      if (calibXInput) calibXInput.value = 508;
+      if (calibYInput) calibYInput.value = 179;
+      if (calibRotInput) calibRotInput.value = 10;
+    } else {
+      if (calibXInput) calibXInput.value = 508;
+      if (calibYInput) calibYInput.value = 10;
+      if (calibRotInput) calibRotInput.value = 179;
+    }
+  });
+}
+
 
 
 
