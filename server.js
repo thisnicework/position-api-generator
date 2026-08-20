@@ -22,7 +22,8 @@ let latestState = {
   method: 'none'
 };
 
-let defaultMonitorDelayMs = 1000; // Default 1.0s delay between sequential monitors
+let defaultMonitorDelayMs = 1500; // Default 1.5s delay between sequential monitors
+
 
 let autoMonitorIndexCounter = 0;
 
