@@ -247,10 +247,49 @@
             <div class="serial-raw-display" style="margin-top: 6px; font-family: 'Fira Code', monospace; font-size: 10px; color: #0072bd; background: #f0f7ff; padding: 4px 6px; border-radius: 3px; border: 1px solid #cce0f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
               RAW: <span id="serial-raw-val">Awaiting Serial Data...</span>
             </div>
+        <!-- Manual Trigger Override Section (수동 트리거 지정) -->
+        <section class="panel-section">
+          <h2>Manual Trigger Override (수동 트리거 지정)</h2>
+          <div class="form-group">
+            <label for="manual-trigger-select">Trigger Mode Selection</label>
+            <select id="manual-trigger-select" style="width: 100%; font-size: 11px; padding: 5px; border-radius: 4px; background: rgba(15, 23, 42, 0.85); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">
+              <option value="auto" selected>⚡ Auto (자동 알고리즘 감지)</option>
+              <option value="1">1 - Circling / Closed Loop (원그리기)</option>
+              <option value="2">2 - Slow Rotation (느린 회전)</option>
+              <option value="3">3 - Fast Rotation (빠른 회전)</option>
+              <option value="4">4 - Default / Idle (기본)</option>
+              <option value="6">6 - Border Push (보더 이동)</option>
+              <option value="7">7 - Near Top Boundary (상단 근접)</option>
+              <option value="custom">✏️ Custom Number (직접 숫자 입력)</option>
+            </select>
+          </div>
+
+          <div id="custom-trigger-container" style="display: none; margin-top: 6px;">
+            <label for="custom-trigger-input" style="font-size: 10px; color: var(--text-muted);">Custom Trigger Code Number (숫자):</label>
+            <div style="display: flex; gap: 6px; margin-top: 2px;">
+              <input type="number" id="custom-trigger-input" value="5" min="0" max="99" style="flex: 1; font-size: 11px; padding: 4px 6px; border-radius: 4px; border: 1px solid #ccc; background: rgba(15,23,42,0.9); color: #fff;">
+              <button id="apply-custom-trigger-btn" class="btn btn-sm btn-primary" style="padding: 2px 10px; font-size: 10px;">Apply</button>
+            </div>
+          </div>
+
+          <!-- Quick 1-Click Trigger Buttons -->
+          <div style="margin-top: 8px;">
+            <div style="font-size: 9px; color: var(--text-muted); margin-bottom: 4px; font-weight: bold;">Quick 1-Click Force Trigger:</div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;">
+              <button class="quick-trigger-btn btn btn-sm" data-code="auto" style="font-size: 10px; padding: 4px 2px;">Auto</button>
+              <button class="quick-trigger-btn btn btn-sm" data-code="1" style="font-size: 10px; padding: 4px 2px;">Code 1</button>
+              <button class="quick-trigger-btn btn btn-sm" data-code="2" style="font-size: 10px; padding: 4px 2px;">Code 2</button>
+              <button class="quick-trigger-btn btn btn-sm" data-code="3" style="font-size: 10px; padding: 4px 2px;">Code 3</button>
+              <button class="quick-trigger-btn btn btn-sm" data-code="4" style="font-size: 10px; padding: 4px 2px;">Code 4</button>
+              <button class="quick-trigger-btn btn btn-sm" data-code="6" style="font-size: 10px; padding: 4px 2px;">Code 6</button>
+              <button class="quick-trigger-btn btn btn-sm" data-code="7" style="font-size: 10px; padding: 4px 2px;">Code 7</button>
+              <button class="quick-trigger-btn btn btn-sm" data-code="5" style="font-size: 10px; padding: 4px 2px;">Code 5</button>
+            </div>
           </div>
         </section>
 
         <!-- Live Telemetry Section -->
+
         <section class="panel-section">
           <h2>Telemetry & 7 Monitors Queue</h2>
           <div class="telemetry-grid">

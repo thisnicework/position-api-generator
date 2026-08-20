@@ -440,10 +440,96 @@ function checkClosedShape(now) {
   return false;
 }
 
+// --- Manual Trigger Override State ---
+let manualActionOverride = null; // null = Auto algorithm detection, number = forced trigger code
+
+const manualTriggerSelect = document.getElementById('manual-trigger-select');
+const customTriggerContainer = document.getElementById('custom-trigger-container');
+const customTriggerInput = document.getElementById('custom-trigger-input');
+const applyCustomTriggerBtn = document.getElementById('apply-custom-trigger-btn');
+const quickTriggerBtns = document.querySelectorAll('.quick-trigger-btn');
+
+function setManualTrigger(code) {
+  if (code === 'auto' || code === null || code === undefined) {
+    manualActionOverride = null;
+    if (manualTriggerSelect) manualTriggerSelect.value = 'auto';
+    if (customTriggerContainer) customTriggerContainer.style.display = 'none';
+    logTerminal('system', `⚙️ Trigger Mode set to: AUTO (알고리즘 자동 감지)`);
+  } else {
+    const num = parseInt(code, 10);
+    if (!isNaN(num)) {
+      manualActionOverride = num;
+      lastActiveTrigger = num;
+      state.action = num;
+      logTerminal('success', `🎯 Manual Trigger Override set to: Code ${num}`);
+    }
+  }
+  updateQuickTriggerBtnsUI();
+}
+
+function updateQuickTriggerBtnsUI() {
+  quickTriggerBtns.forEach(btn => {
+    const code = btn.getAttribute('data-code');
+    if ((code === 'auto' && manualActionOverride === null) || (parseInt(code, 10) === manualActionOverride)) {
+      btn.style.background = 'rgba(56, 189, 248, 0.35)';
+      btn.style.color = '#ffffff';
+      btn.style.borderColor = '#38bdf8';
+      btn.style.fontWeight = 'bold';
+    } else {
+      btn.style.background = 'rgba(15, 23, 42, 0.6)';
+      btn.style.color = '#94a3b8';
+      btn.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+      btn.style.fontWeight = 'normal';
+    }
+  });
+}
+
+if (manualTriggerSelect) {
+  manualTriggerSelect.addEventListener('change', (e) => {
+    const val = e.target.value;
+    if (val === 'custom') {
+      if (customTriggerContainer) customTriggerContainer.style.display = 'block';
+    } else {
+      if (customTriggerContainer) customTriggerContainer.style.display = 'none';
+      setManualTrigger(val);
+    }
+  });
+}
+
+if (applyCustomTriggerBtn && customTriggerInput) {
+  applyCustomTriggerBtn.addEventListener('click', () => {
+    const val = customTriggerInput.value;
+    setManualTrigger(val);
+  });
+}
+
+quickTriggerBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const code = btn.getAttribute('data-code');
+    setManualTrigger(code);
+    if (manualTriggerSelect) {
+      if (code === 'auto') manualTriggerSelect.value = 'auto';
+      else if (['1','2','3','4','6','7'].includes(code)) manualTriggerSelect.value = code;
+      else {
+        manualTriggerSelect.value = 'custom';
+        if (customTriggerContainer) customTriggerContainer.style.display = 'block';
+        if (customTriggerInput) customTriggerInput.value = code;
+      }
+    }
+  });
+});
+
 let lastActiveTrigger = 4; // Remembers last triggered action code (defaults to 4)
 
 function determineActionCode() {
+  // If manual override is active, strictly return forced trigger code!
+  if (manualActionOverride !== null) {
+    lastActiveTrigger = manualActionOverride;
+    return manualActionOverride;
+  }
+
   const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
+
   const distToTop = Math.hypot(state.x - 2500, state.y - 5000);
   const linearSpeed = Math.hypot(state.vx, state.vy);
   const rotSpeed = Math.abs(state.vRotation);
