@@ -213,22 +213,10 @@ function getSmoothedValue(axis) {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-function getSmoothedRotation(centerRot = 10) {
-  const arr = sensorHistory.rot;
-  if (arr.length === 0) return centerRot;
-  if (arr.length === 1) return arr[0];
-
-  // Circular mean using atan2 — correctly handles 0°/360° wraparound
-  // e.g. [355, 358, 2, 5, 8] → correctly averages to ~1.6° instead of broken 145°
-  let sinSum = 0, cosSum = 0;
-  for (let i = 0; i < arr.length; i++) {
-    const rad = (arr[i] * Math.PI) / 180;
-    sinSum += Math.sin(rad);
-    cosSum += Math.cos(rad);
-  }
-  let avgDeg = (Math.atan2(sinSum, cosSum) * 180) / Math.PI;
-  return ((avgDeg % 360) + 360) % 360;
+function getSmoothedRotation() {
+  return getSmoothedValue('rot');
 }
+
 
 
 
@@ -1025,9 +1013,8 @@ function processIncomingSerialLine(line) {
     }
     if (invertY) normY = -normY;
 
-    // Rotation: Piecewise deflection normalization (-1.0 ~ +1.0)
-    // getCircularDiff always returns [-180, +180] — handles 0°/360° wraparound for both CW and CCW
-    let diffRot = getCircularDiff(smoothRot, centerRot);
+    // Rotation: Piecewise deflection normalization strictly using calibrated center and spans (-1.0 ~ +1.0)
+    let diffRot = smoothRot - centerRot;
 
     if (invertRot) diffRot = -diffRot;
 
@@ -1036,6 +1023,7 @@ function processIncomingSerialLine(line) {
     } else {
       normRot = diffRot / Math.max(1, minRotSpan);
     }
+
 
 
 
@@ -1515,18 +1503,11 @@ loadSavedCalibration();
 
 
 if (serialOrderSelect) {
-  serialOrderSelect.addEventListener('change', (e) => {
-    if (e.target.value === 'xry') {
-      if (calibXInput) calibXInput.value = 508;
-      if (calibYInput) calibYInput.value = 179;
-      if (calibRotInput) calibRotInput.value = 10;
-    } else {
-      if (calibXInput) calibXInput.value = 508;
-      if (calibYInput) calibYInput.value = 10;
-      if (calibRotInput) calibRotInput.value = 179;
-    }
+  serialOrderSelect.addEventListener('change', () => {
+    logTerminal('system', `Serial Order changed. Calibrated values preserved.`);
   });
 }
+
 
 
 
