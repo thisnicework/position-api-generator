@@ -1669,8 +1669,9 @@ function updatePhysics() {
   const hudAct = document.getElementById('hud-val-act');
   if (hudX) hudX.textContent = state.x.toFixed(1);
   if (hudY) hudY.textContent = state.y.toFixed(1);
-  if (hudRot) hudRot.textContent = `${Math.round(state.rotation)}°`;
-  if (hudAct) hudAct.textContent = state.action;
+  if (hudRot) hudRot.textContent = `${String(Math.round(state.rotation)).padStart(3, '0')}°`;
+  if (hudAct) hudAct.textContent = `[${state.action}]`;
+
 
   if (telA) {
     const actionLabels = {

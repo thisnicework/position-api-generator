@@ -377,28 +377,35 @@
         <div class="canvas-wrapper" style="position: relative;">
           <div id="toggle-menu-hint" class="menu-toggle-hint" title="Press 'S' key to toggle side menu">⌨️ Press 'S' to Hide Menu</div>
           
-          <!-- Terminal-Style Large HUD Overlay (Stays 100% Visible & Enlarged on 'S' key press) -->
+          <!-- Authentic MATLAB / UNIX Terminal Header HUD Overlay (Pinned to Top-Left) -->
           <div id="terminal-hud-overlay" class="terminal-hud-overlay">
+            <div class="terminal-hud-header-bar">
+              <span class="hud-term-dot red"></span>
+              <span class="hud-term-dot yellow"></span>
+              <span class="hud-term-dot green"></span>
+              <span class="hud-term-title">MATLAB / UNIX TELEMETRY MONITOR // [0..5000 GRID]</span>
+            </div>
             <div class="terminal-hud-line">
               <span class="terminal-hud-prompt">&gt;_</span>
               <div class="hud-item-box">
-                <span class="terminal-hud-label">X:</span>
+                <span class="terminal-hud-label">POS_X:</span>
                 <span id="hud-val-x" class="terminal-hud-value">2500.0</span>
               </div>
               <div class="hud-item-box">
-                <span class="terminal-hud-label">Y:</span>
+                <span class="terminal-hud-label">POS_Y:</span>
                 <span id="hud-val-y" class="terminal-hud-value">2500.0</span>
               </div>
               <div class="hud-item-box">
-                <span class="terminal-hud-label">ROT:</span>
-                <span id="hud-val-rot" class="terminal-hud-rot">0°</span>
+                <span class="terminal-hud-label">ANGLE:</span>
+                <span id="hud-val-rot" class="terminal-hud-rot">000°</span>
               </div>
               <div class="hud-item-box">
-                <span class="terminal-hud-label">ACT:</span>
-                <span id="hud-val-act" class="terminal-hud-act">4</span>
+                <span class="terminal-hud-label">TRIGGER:</span>
+                <span id="hud-val-act" class="terminal-hud-act">[4]</span>
               </div>
             </div>
           </div>
+
 
           <canvas id="gl-canvas" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index: 1;"></canvas>
           <canvas id="control-canvas" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index: 2;"></canvas>
