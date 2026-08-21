@@ -313,7 +313,11 @@ const actionTracker = {
   closedShapeUntil: 0,   // Hysteresis timestamp for smooth active state
   straightMoveAccumulator: 0, // Accumulated straight linear distance along X or Y
   straightMoveUntil: 0,       // Active window for Code 4 trigger when straight movement accumulates
+  lastYDir: 0,                // Last recorded Y-axis velocity sign (-1, 0, 1)
+  yReversalTimes: [],         // Timestamps of Y-axis direction reversals
+  yOscillationUntil: 0,       // Active window for Code 0 trigger (Y-oscillation 4x)
 };
+
 
 
 // --- 7 Monitors (0~6) Action FIFO Shift Queue State ---
@@ -559,6 +563,33 @@ function determineActionCode() {
   // Update trajectory points
   updateTrajectory(now);
 
+  // --- Y-Axis Rapid Oscillation (Up & Down 4 Times) Detection for Action Code 0 ---
+  const currentYDir = Math.abs(state.vy) >= 1.0 ? Math.sign(state.vy) : 0;
+  if (currentYDir !== 0 && actionTracker.lastYDir !== 0 && currentYDir !== actionTracker.lastYDir) {
+    actionTracker.yReversalTimes.push(now);
+  }
+  if (currentYDir !== 0) {
+    actionTracker.lastYDir = currentYDir;
+  }
+
+  // Filter out Y-axis reversals older than 2.5 seconds (2500 ms)
+  const yCutoff = now - 2500;
+  while (actionTracker.yReversalTimes.length > 0 && actionTracker.yReversalTimes[0] < yCutoff) {
+    actionTracker.yReversalTimes.shift();
+  }
+
+  // When Y-axis direction flips 4 or more times within 2.5s (4 reversals = 2 full up-down cycles), trigger Code 0!
+  if (actionTracker.yReversalTimes.length >= 4) {
+    actionTracker.yOscillationUntil = now + 1500; // Keep Code 0 active for 1.5s
+    actionTracker.yReversalTimes = []; // Reset reversal list after trigger
+  }
+
+  // Active trigger for Y-Axis 4x Rapid Oscillation -> Output Code 0!
+  if (now < actionTracker.yOscillationUntil) {
+    lastActiveTrigger = 0;
+    return 0;
+  }
+
   // Accumulate straight X/Y linear movement to trigger Action Code 4
   const isMovingStraight = linearSpeed >= 0.8 && rotSpeed < 0.35;
   if (isMovingStraight) {
@@ -578,6 +609,7 @@ function determineActionCode() {
     lastActiveTrigger = 4;
     return 4;
   }
+
 
   let rawAction = 4;
 
@@ -1765,16 +1797,36 @@ function render() {
     rainbowTrails.push({ x: screenX, y: screenY, rotation: state.rotation, hue: currentHue, time: nowTime });
   }
 
-  // Clean old trail points (> 8500ms for extra-long rich trail persistence)
-  const TRAIL_LIFETIME = 8500;
+  // --- 1. Persistent Fabric Phosphor Afterglow Trail (원 천 뒤 후레쉬 잔상 효과) ---
+  const TRAIL_LIFETIME = 9500; // 9.5 seconds long persistent fabric afterglow
   while (rainbowTrails.length > 0 && nowTime - rainbowTrails[0].time > TRAIL_LIFETIME) {
     rainbowTrails.shift();
   }
 
-
-  // Render Continuous Glowing Rainbow Neon Ribbon Tail (연속적인 무지개 잔상 띠)
   if (rainbowTrails.length > 1) {
     ctx.save();
+    
+    // A. Soft Diffused Spotlight Footprints on Fabric (천 위 광원 잔상)
+    for (let i = 0; i < rainbowTrails.length; i += 3) {
+      const p = rainbowTrails[i];
+      const age = nowTime - p.time;
+      const life = Math.max(0, 1 - age / TRAIL_LIFETIME);
+      const alpha = life * life; // Exponential decay
+
+      const spotRadius = (95 + Math.sin(i * 0.12) * 12) * life;
+      const spotGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, spotRadius);
+      spotGrad.addColorStop(0, `hsla(${p.hue}, 100%, 75%, ${alpha * 0.35})`);
+      spotGrad.addColorStop(0.4, `hsla(${p.hue}, 100%, 65%, ${alpha * 0.12})`);
+      spotGrad.addColorStop(0.8, `hsla(${p.hue}, 100%, 55%, ${alpha * 0.03})`);
+      spotGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+      ctx.fillStyle = spotGrad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, spotRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // B. Continuous Luminous Light Ribbon Diffusing Through Fabric Threads
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -1785,25 +1837,25 @@ function render() {
       const life = Math.max(0, 1 - age / TRAIL_LIFETIME);
       const alpha = life * 0.85;
 
-      // Outer Glowing Rainbow Ribbon
-      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 55%, ${alpha * 0.45})`;
-      ctx.lineWidth = 22 * life;
+      // Outer Volumetric Soft Light Aura
+      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 65%, ${alpha * 0.22})`;
+      ctx.lineWidth = 70 * life;
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       ctx.lineTo(p2.x, p2.y);
       ctx.stroke();
 
-      // Main Rainbow Neon Ribbon
-      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 65%, ${alpha})`;
-      ctx.lineWidth = 12 * life;
+      // Main Diffused Fabric Light Ribbon
+      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 70%, ${alpha * 0.65})`;
+      ctx.lineWidth = 30 * life;
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       ctx.lineTo(p2.x, p2.y);
       ctx.stroke();
 
-      // Core White Highlight Ribbon
-      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 90%, ${alpha * 0.95})`;
-      ctx.lineWidth = 3.5 * life;
+      // Inner Radiant Light Filament
+      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 92%, ${alpha * 0.9})`;
+      ctx.lineWidth = 4.5 * life;
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       ctx.lineTo(p2.x, p2.y);
@@ -1813,51 +1865,69 @@ function render() {
   }
 
 
-  // Render Large Flashlight / Spotlight Beam Circle Cursor at (screenX, screenY)
+  // --- 2. Main Light Source: Flashlight Shining Through Circular Fabric Screen (원 천 뒤에서 후레쉬 비춤) ---
   ctx.save();
   ctx.translate(screenX, screenY);
 
-  const flashlightRadius = 140; // Large Flashlight Beam Diameter (280px)
+  const fabricRadius = 175; // Large Fabric Backlight Diameter (350px)
 
-  // 1. Soft Radial Flashlight Beam Light Projection
-  const flashlightGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, flashlightRadius);
-  flashlightGrad.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
-  flashlightGrad.addColorStop(0.4, `hsla(${currentHue}, 100%, 70%, 0.14)`);
-  flashlightGrad.addColorStop(0.75, `hsla(${currentHue}, 100%, 60%, 0.05)`);
-  flashlightGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  // A. Volumetric Backlight Diffusion projection through Fabric Canvas
+  const fabricGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, fabricRadius);
+  fabricGrad.addColorStop(0, 'rgba(255, 255, 255, 0.75)'); // Intense central light source
+  fabricGrad.addColorStop(0.18, `hsla(${currentHue}, 100%, 80%, 0.45)`);
+  fabricGrad.addColorStop(0.45, `hsla(${currentHue}, 100%, 65%, 0.22)`);
+  fabricGrad.addColorStop(0.75, `hsla(${currentHue}, 100%, 55%, 0.08)`);
+  fabricGrad.addColorStop(1, 'rgba(0, 0, 0, 0)'); // Fades smoothly into dark space
 
-  ctx.fillStyle = flashlightGrad;
+  ctx.fillStyle = fabricGrad;
   ctx.beginPath();
-  ctx.arc(0, 0, flashlightRadius, 0, Math.PI * 2);
+  ctx.arc(0, 0, fabricRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  // 2. Soft Outer Flashlight Light Ring
-  ctx.shadowColor = `hsla(${currentHue}, 100%, 70%, 0.6)`;
-  ctx.shadowBlur = 24;
-
-  ctx.strokeStyle = `hsla(${currentHue}, 100%, 75%, 0.55)`;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(0, 0, flashlightRadius, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // 3. Inner Subtle Specular Ring
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  // B. Circular Fabric Weave & Fiber Thread Micro-Details (천 질감 묘사)
+  ctx.save();
+  ctx.rotate((state.rotation * Math.PI) / 180);
+  
+  // Concentric Circular Fiber Weave Threads
+  ctx.strokeStyle = `hsla(${currentHue}, 100%, 85%, 0.12)`;
   ctx.lineWidth = 1.0;
+  for (let r = 25; r < fabricRadius - 10; r += 25) {
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Cross-hatched Radial Fabric Ray Threads
+  ctx.strokeStyle = `hsla(${currentHue}, 100%, 90%, 0.08)`;
+  ctx.lineWidth = 0.8;
+  for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(a) * (fabricRadius - 15), Math.sin(a) * (fabricRadius - 15));
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // C. Soft Outer Backlight Edge Halo (천 외곽 부드러운 광원 아우라)
+  ctx.shadowColor = `hsla(${currentHue}, 100%, 75%, 0.7)`;
+  ctx.shadowBlur = 35;
+  ctx.strokeStyle = `hsla(${currentHue}, 100%, 80%, 0.4)`;
+  ctx.lineWidth = 2.0;
   ctx.beginPath();
-  ctx.arc(0, 0, flashlightRadius - 10, 0, Math.PI * 2);
+  ctx.arc(0, 0, fabricRadius, 0, Math.PI * 2);
   ctx.stroke();
 
-  // 4. Center Flashlight Bulb Core Dot
-  ctx.shadowColor = '#00f3ff';
-  ctx.shadowBlur = 12;
+  // D. Flashlight Bulb Focal Point
+  ctx.shadowColor = '#ffffff';
+  ctx.shadowBlur = 20;
   ctx.fillStyle = '#FFFFFF';
   ctx.beginPath();
-  ctx.arc(0, 0, 6, 0, Math.PI * 2);
+  ctx.arc(0, 0, 7, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
   ctx.restore();
+
 
 
 
