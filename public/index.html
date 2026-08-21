@@ -44,17 +44,18 @@
           <div class="form-group">
             <label for="tx-interval">TX Interval (전송 주기 ms)</label>
             <div class="range-container">
-              <input type="range" id="tx-interval" min="50" max="1000" step="50" value="200">
-              <span id="interval-val">200 ms</span>
+              <input type="range" id="tx-interval" min="100" max="3000" step="100" value="1500">
+              <span id="interval-val">1500 ms (1.5s)</span>
             </div>
           </div>
           <div class="form-group">
             <label for="monitor-delay">Monitor Sequential Delay (모니터 딜레이)</label>
             <div class="range-container">
-              <input type="range" id="monitor-delay" min="50" max="2000" step="50" value="500">
-              <span id="monitor-delay-val">500 ms (0.5s)</span>
+              <input type="range" id="monitor-delay" min="100" max="3000" step="100" value="1500">
+              <span id="monitor-delay-val">1500 ms (1.5s)</span>
             </div>
           </div>
+
           <button id="connect-btn" class="btn btn-primary">Connect / Apply</button>
         </section>
 

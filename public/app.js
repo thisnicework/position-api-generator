@@ -311,7 +311,8 @@ function getDefaultEndpoint() {
 }
 
 let apiEndpoint = getDefaultEndpoint();
-let transmitInterval = 200; // ms
+let transmitInterval = 1500; // 1500ms (1.5s) default transmission interval gap
+
 
 let transmitIntervalId = null;
 let connectionState = 'disconnected'; // 'disconnected', 'connecting', 'connected'
@@ -785,12 +786,14 @@ window.addEventListener('keyup', (e) => {
 
 intervalSlider.addEventListener('input', (e) => {
   transmitInterval = parseInt(e.target.value, 10);
-  intervalVal.textContent = `${transmitInterval} ms`;
+  const sec = (transmitInterval / 1000).toFixed(1);
+  intervalVal.textContent = `${transmitInterval} ms (${sec}s)`;
   if (connectionState === 'connected') {
     clearInterval(transmitIntervalId);
     startTransmissionLoop();
   }
 });
+
 
 const monitorDelaySlider = document.getElementById('monitor-delay');
 const monitorDelayVal = document.getElementById('monitor-delay-val');
@@ -1589,13 +1592,15 @@ function transmitState() {
   const now = Date.now();
   const timeSinceLastTransmit = now - (lastTransmittedState.timestamp || 0);
 
-  // Minimum Transmission Gap Throttling: Ensure at least 180ms gap between consecutive packets (prevents packet flooding)
-  if (timeSinceLastTransmit < 180) {
+  // Transmission Gap Throttling: Ensure transmissions strictly respect transmitInterval (e.g., 1.5s / 1500ms gap)
+  const minGap = Math.max(100, transmitInterval - 50);
+  if (timeSinceLastTransmit < minGap) {
     return;
   }
 
-  // Heartbeat check: force transmit at least once every 500ms even if position is idle
-  const isHeartbeatDue = timeSinceLastTransmit >= 500;
+  // Heartbeat check: force transmit if idle time exceeds 1.5x of interval
+  const isHeartbeatDue = timeSinceLastTransmit >= (transmitInterval * 1.5);
+
 
   if (
     !isHeartbeatDue &&
