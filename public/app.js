@@ -637,14 +637,19 @@ function determineActionCode() {
     actionTracker.closedShapeUntil = now + 1500;
   }
 
-  // ▸ Detector D: Border Radial Movement (Code 6)
-  const isNearBorder = distFromCenter >= 1400;
+  // ▸ Detector D: Full Screen Outer Border Outward Push Movement (Code 6)
+  const nearLeft = state.x <= 500 && state.vx < -0.2;
+  const nearRight = state.x >= 4500 && state.vx > 0.2;
+  const nearBottom = state.y <= 500 && state.vy < -0.2;
+  const nearTop = state.y >= 4500 && state.vy > 0.2;
   const nx = distFromCenter > 0 ? (state.x - 2500) / distFromCenter : 0;
   const ny = distFromCenter > 0 ? (state.y - 2500) / distFromCenter : 0;
   const outwardVel = state.vx * nx + state.vy * ny;
-  const isMovingOutward = isNearBorder && (outwardVel > 0.05 || distFromCenter >= 2100);
+  const nearOuterRadial = distFromCenter >= 2000 && outwardVel > 0.2;
 
-  if (isMovingOutward) {
+  const isPushingOutsideBorder = nearLeft || nearRight || nearBottom || nearTop || nearOuterRadial;
+
+  if (isPushingOutsideBorder) {
     actionTracker.lastBorderPauseTime = null;
     if (!actionTracker.borderMoveStartTime) {
       actionTracker.borderMoveStartTime = now;
@@ -654,9 +659,10 @@ function determineActionCode() {
       actionTracker.lastBorderPauseTime = now;
     } else if (now - actionTracker.lastBorderPauseTime > 300) {
       actionTracker.borderMoveStartTime = null;
-      actionTracker.lastBorderPauseTime = null;
+      actionTracker.borderMoveStartTime = null;
     }
   }
+
 
   // ▸ Detector E: 4 Screen Corners Dwelling Proximity (Code 7)
   const distTL = Math.hypot(state.x - 0, state.y - 5000);
@@ -1901,27 +1907,23 @@ function render() {
   if (rainbowTrails.length > 1) {
     ctx.save();
     
-    // A. Soft Diffused Spotlight Footprints on Fabric (천 위 광원 잔상)
-    for (let i = 0; i < rainbowTrails.length; i += 3) {
-      const p = rainbowTrails[i];
-      const age = nowTime - p.time;
+    // A. Soft Volumetric Phosphor Smoke Aura (은은하고 넓게 번지는 몽환적 잔상 아우라)
+    for (let i = 0; i < rainbowTrails.length - 1; i += 2) {
+      const p1 = rainbowTrails[i];
+      const p2 = rainbowTrails[i + 1];
+      const age = nowTime - p1.time;
       const life = Math.max(0, 1 - age / TRAIL_LIFETIME);
-      const alpha = life * life; // Exponential decay
+      const alpha = life * life * 0.18; // Soft exponential decay
 
-      const spotRadius = (95 + Math.sin(i * 0.12) * 12) * life;
-      const spotGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, spotRadius);
-      spotGrad.addColorStop(0, `hsla(${p.hue}, 100%, 75%, ${alpha * 0.35})`);
-      spotGrad.addColorStop(0.4, `hsla(${p.hue}, 100%, 65%, ${alpha * 0.12})`);
-      spotGrad.addColorStop(0.8, `hsla(${p.hue}, 100%, 55%, ${alpha * 0.03})`);
-      spotGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-      ctx.fillStyle = spotGrad;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.lineWidth = 40 * life;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, spotRadius, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
     }
 
-    // B. Continuous Luminous Light Ribbon Diffusing Through Fabric Threads
+    // B. Fine Radiant Luminous Filament (섬세하고 깨끗한 빛 잔상 실선)
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -1930,33 +1932,17 @@ function render() {
       const p2 = rainbowTrails[i + 1];
       const age = nowTime - p1.time;
       const life = Math.max(0, 1 - age / TRAIL_LIFETIME);
-      const alpha = life * 0.85;
+      const alpha = life * 0.65;
 
-      // Outer Volumetric Soft Light Aura
-      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 65%, ${alpha * 0.22})`;
-      ctx.lineWidth = 70 * life;
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.stroke();
-
-      // Main Diffused Fabric Light Ribbon
-      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 70%, ${alpha * 0.65})`;
-      ctx.lineWidth = 30 * life;
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.stroke();
-
-      // Inner Radiant Light Filament
-      ctx.strokeStyle = `hsla(${p1.hue}, 100%, 92%, ${alpha * 0.9})`;
-      ctx.lineWidth = 4.5 * life;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.lineWidth = 2.0 * life;
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       ctx.lineTo(p2.x, p2.y);
       ctx.stroke();
     }
     ctx.restore();
+
   }
 
 
