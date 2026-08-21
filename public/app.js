@@ -1899,26 +1899,60 @@ function render() {
   }
 
 
-  // --- 2. Main Light Source: Flashlight Shining Through Circular Fabric Screen (원 천 뒤에서 후레쉬 비춤) ---
+  // --- 2. Main Light Source: Flashlight & Subtle Atmospheric Light Leakage (은은한 빔샘 효과) ---
   ctx.save();
   ctx.translate(screenX, screenY);
 
-  const fabricRadius = 150; // Volumetric Backlight Diameter (300px)
+  const fabricRadius = 150; // Volumetric Backlight Radius (300px diameter)
 
-  // Pure Volumetric Light Projection & Smooth Glow Gradient (No Thin Strokes/Lines)
+  // A. Subtle Anamorphic & Volumetric Light Bleed Plumes (은은한 빔샘 아우라 & 방사형 광선)
+  ctx.save();
+  ctx.rotate((state.rotation * Math.PI) / 180);
+
+  // Soft Horizontal Anamorphic Lens Flare Bleed Streak (은은한 수평 빛샘 아우라)
+  const flareGrad = ctx.createLinearGradient(-220, 0, 220, 0);
+  flareGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  flareGrad.addColorStop(0.2, `hsla(${currentHue}, 100%, 75%, 0.03)`);
+  flareGrad.addColorStop(0.5, `hsla(${currentHue}, 100%, 90%, 0.12)`);
+  flareGrad.addColorStop(0.8, `hsla(${currentHue}, 100%, 75%, 0.03)`);
+  flareGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+  ctx.fillStyle = flareGrad;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 220, 24, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Subtle Soft Radial Light Leak Plumes (은은하게 번지는 4방향 빔샘 광모를)
+  for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
+    const plumeGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, 240);
+    plumeGrad.addColorStop(0, `hsla(${currentHue}, 100%, 85%, 0.1)`);
+    plumeGrad.addColorStop(0.3, `hsla(${currentHue}, 100%, 70%, 0.04)`);
+    plumeGrad.addColorStop(0.7, `hsla(${currentHue}, 100%, 60%, 0.01)`);
+    plumeGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+    ctx.fillStyle = plumeGrad;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, 240, angle - 0.35, angle + 0.35);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // B. Main Volumetric Light Projection & Smooth Soft Falloff
   const fabricGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, fabricRadius);
-  fabricGrad.addColorStop(0, 'rgba(255, 255, 255, 0.85)'); // Intense central light source
-  fabricGrad.addColorStop(0.15, `hsla(${currentHue}, 100%, 82%, 0.5)`);
-  fabricGrad.addColorStop(0.4, `hsla(${currentHue}, 100%, 65%, 0.22)`);
-  fabricGrad.addColorStop(0.7, `hsla(${currentHue}, 100%, 55%, 0.07)`);
-  fabricGrad.addColorStop(1, 'rgba(0, 0, 0, 0)'); // Fades completely smoothly into pitch black void
+  fabricGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)'); // Pure luminous core
+  fabricGrad.addColorStop(0.18, `hsla(${currentHue}, 100%, 85%, 0.48)`);
+  fabricGrad.addColorStop(0.42, `hsla(${currentHue}, 100%, 68%, 0.2)`);
+  fabricGrad.addColorStop(0.72, `hsla(${currentHue}, 100%, 55%, 0.06)`);
+  fabricGrad.addColorStop(1, 'rgba(0, 0, 0, 0)'); // Fades smoothly into pitch black
 
   ctx.fillStyle = fabricGrad;
   ctx.beginPath();
   ctx.arc(0, 0, fabricRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  // Flashlight Bulb Focal Point (Pure Luminous Center)
+  // C. Flashlight Bulb Focal Point (Pure Luminous Center)
   ctx.shadowColor = '#ffffff';
   ctx.shadowBlur = 24;
   ctx.fillStyle = '#FFFFFF';
@@ -1928,6 +1962,7 @@ function render() {
 
   ctx.shadowColor = 'transparent';
   ctx.restore();
+
 
 
 
