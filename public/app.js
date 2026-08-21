@@ -1740,11 +1740,12 @@ function render() {
     rainbowTrails.push({ x: screenX, y: screenY, rotation: state.rotation, hue: currentHue, time: nowTime });
   }
 
-  // Clean old trail points (> 1800ms for continuous rich tail)
-  const TRAIL_LIFETIME = 1800;
+  // Clean old trail points (> 8500ms for extra-long rich trail persistence)
+  const TRAIL_LIFETIME = 8500;
   while (rainbowTrails.length > 0 && nowTime - rainbowTrails[0].time > TRAIL_LIFETIME) {
     rainbowTrails.shift();
   }
+
 
   // Render Continuous Glowing Rainbow Neon Ribbon Tail (연속적인 무지개 잔상 띠)
   if (rainbowTrails.length > 1) {
