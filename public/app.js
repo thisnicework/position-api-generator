@@ -1869,64 +1869,32 @@ function render() {
   ctx.save();
   ctx.translate(screenX, screenY);
 
-  const fabricRadius = 175; // Large Fabric Backlight Diameter (350px)
+  const fabricRadius = 180; // Volumetric Backlight Diameter (360px)
 
-  // A. Volumetric Backlight Diffusion projection through Fabric Canvas
+  // Pure Volumetric Light Projection & Smooth Glow Gradient (No Thin Strokes/Lines)
   const fabricGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, fabricRadius);
-  fabricGrad.addColorStop(0, 'rgba(255, 255, 255, 0.75)'); // Intense central light source
-  fabricGrad.addColorStop(0.18, `hsla(${currentHue}, 100%, 80%, 0.45)`);
-  fabricGrad.addColorStop(0.45, `hsla(${currentHue}, 100%, 65%, 0.22)`);
-  fabricGrad.addColorStop(0.75, `hsla(${currentHue}, 100%, 55%, 0.08)`);
-  fabricGrad.addColorStop(1, 'rgba(0, 0, 0, 0)'); // Fades smoothly into dark space
+  fabricGrad.addColorStop(0, 'rgba(255, 255, 255, 0.85)'); // Intense central light source
+  fabricGrad.addColorStop(0.15, `hsla(${currentHue}, 100%, 82%, 0.5)`);
+  fabricGrad.addColorStop(0.4, `hsla(${currentHue}, 100%, 65%, 0.22)`);
+  fabricGrad.addColorStop(0.7, `hsla(${currentHue}, 100%, 55%, 0.07)`);
+  fabricGrad.addColorStop(1, 'rgba(0, 0, 0, 0)'); // Fades completely smoothly into pitch black void
 
   ctx.fillStyle = fabricGrad;
   ctx.beginPath();
   ctx.arc(0, 0, fabricRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  // B. Circular Fabric Weave & Fiber Thread Micro-Details (천 질감 묘사)
-  ctx.save();
-  ctx.rotate((state.rotation * Math.PI) / 180);
-  
-  // Concentric Circular Fiber Weave Threads
-  ctx.strokeStyle = `hsla(${currentHue}, 100%, 85%, 0.12)`;
-  ctx.lineWidth = 1.0;
-  for (let r = 25; r < fabricRadius - 10; r += 25) {
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  // Cross-hatched Radial Fabric Ray Threads
-  ctx.strokeStyle = `hsla(${currentHue}, 100%, 90%, 0.08)`;
-  ctx.lineWidth = 0.8;
-  for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(Math.cos(a) * (fabricRadius - 15), Math.sin(a) * (fabricRadius - 15));
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // C. Soft Outer Backlight Edge Halo (천 외곽 부드러운 광원 아우라)
-  ctx.shadowColor = `hsla(${currentHue}, 100%, 75%, 0.7)`;
-  ctx.shadowBlur = 35;
-  ctx.strokeStyle = `hsla(${currentHue}, 100%, 80%, 0.4)`;
-  ctx.lineWidth = 2.0;
-  ctx.beginPath();
-  ctx.arc(0, 0, fabricRadius, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // D. Flashlight Bulb Focal Point
+  // Flashlight Bulb Focal Point (Pure Luminous Center)
   ctx.shadowColor = '#ffffff';
-  ctx.shadowBlur = 20;
+  ctx.shadowBlur = 24;
   ctx.fillStyle = '#FFFFFF';
   ctx.beginPath();
-  ctx.arc(0, 0, 7, 0, Math.PI * 2);
+  ctx.arc(0, 0, 6, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
   ctx.restore();
+
 
 
 
