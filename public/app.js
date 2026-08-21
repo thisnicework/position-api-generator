@@ -1587,10 +1587,15 @@ function transmitState() {
 
   const monitorsHash = JSON.stringify(monitorQueue);
   const now = Date.now();
-
-  // Heartbeat check: force transmit at least once every 400ms even if position is idle
   const timeSinceLastTransmit = now - (lastTransmittedState.timestamp || 0);
-  const isHeartbeatDue = timeSinceLastTransmit >= 400;
+
+  // Minimum Transmission Gap Throttling: Ensure at least 180ms gap between consecutive packets (prevents packet flooding)
+  if (timeSinceLastTransmit < 180) {
+    return;
+  }
+
+  // Heartbeat check: force transmit at least once every 500ms even if position is idle
+  const isHeartbeatDue = timeSinceLastTransmit >= 500;
 
   if (
     !isHeartbeatDue &&
@@ -1606,6 +1611,7 @@ function transmitState() {
   // Prevent overlapping pending HTTP fetch requests
   if (isTransmitting) return;
   isTransmitting = true;
+
 
   // Update last transmitted values
   lastTransmittedState = {
