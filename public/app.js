@@ -1085,16 +1085,18 @@ function processIncomingSerialLine(line) {
     }
     if (invertY) normY = -normY;
 
-    // Rotation: Piecewise deflection normalization strictly using calibrated center and spans (-1.0 ~ +1.0)
-    let diffRot = smoothRot - centerRot;
+    // Rotation: Piecewise deflection normalization (-1.0 ~ +1.0)
+    // getCircularDiff always returns [-180, +180] — handles 0°/360° wraparound for both CW and CCW
+    let diffRot = getCircularDiff(smoothRot, centerRot);
 
     if (invertRot) diffRot = -diffRot;
 
     if (diffRot > 0) {
-      normRot = diffRot / Math.max(1, maxRotSpan);
+      normRot = diffRot / Math.max(5, maxRotSpan);
     } else {
-      normRot = diffRot / Math.max(1, minRotSpan);
+      normRot = diffRot / Math.max(5, minRotSpan);
     }
+
 
 
 
