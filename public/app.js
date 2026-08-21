@@ -721,10 +721,11 @@ const deadzoneSliderValSpan = document.getElementById('deadzone-slider-val');
 
 if (joystickDeadzoneSlider && deadzoneSliderValSpan) {
   joystickDeadzoneSlider.addEventListener('input', (e) => {
-    const val = parseInt(e.target.value, 10) || 8;
+    const val = parseInt(e.target.value, 10) || 16;
     deadzoneSliderValSpan.textContent = `${val}%`;
   });
 }
+
 
 // Smooth Joystick Deadzone Filter with linear re-scaling (0..1)
 function applyDeadzone(val, dz) {
@@ -954,8 +955,9 @@ function processIncomingSerialLine(line) {
     normRot = Math.max(-1.0, Math.min(1.0, normRot));
 
     // --- Step 4: Smooth Radial/Axial Deadzone Filter with linear re-scaling ---
-    const dzPercent = joystickDeadzoneSlider ? (parseInt(joystickDeadzoneSlider.value, 10) || 8) : 8;
+    const dzPercent = joystickDeadzoneSlider ? (parseInt(joystickDeadzoneSlider.value, 10) || 16) : 16;
     const DEADZONE = dzPercent / 100.0;
+
 
     normX = applyDeadzone(normX, DEADZONE);
     normY = applyDeadzone(normY, DEADZONE);
