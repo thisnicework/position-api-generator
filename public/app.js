@@ -1607,10 +1607,10 @@ function transmitState() {
     x: currentX,
     y: currentY,
     rotation: currentRotation,
+    timestamp: now,
     action: currentAction,
     monitors: [...monitorQueue],
-    monitorDelay: monitorDelayMs,
-    timestamp: now
+    monitorDelay: monitorDelayMs
   };
 
   fetch(apiEndpoint, {

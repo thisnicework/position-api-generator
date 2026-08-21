@@ -93,21 +93,21 @@ body {
   box-shadow: none !important;
   border-radius: 0px;
   padding: 0px;
-  font-family: 'Courier New', 'Fira Code', 'Consolas', monospace !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  color: #cbd5e1 !important;
-  letter-spacing: 0.5px;
+  font-family: 'Apple SD Gothic Neo', 'AppleGothic', '-apple-system', 'Malgun Gothic', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  color: #ffffff !important;
+  letter-spacing: 0.3px;
   pointer-events: none;
   white-space: pre;
   transition: all 0.2s ease-in-out;
 }
 
 .terminal-hud-overlay span {
-  font-family: 'Courier New', 'Fira Code', 'Consolas', monospace !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  color: #cbd5e1 !important;
+  font-family: 'Apple SD Gothic Neo', 'AppleGothic', '-apple-system', 'Malgun Gothic', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  color: #ffffff !important;
 }
 
 /* Screensaver Mode ('S' key) - Pin strictly to Top-Left, uniform size & color */
@@ -123,18 +123,18 @@ body {
   border: none !important;
   box-shadow: none !important;
   padding: 0px !important;
-  font-family: 'Courier New', 'Fira Code', 'Consolas', monospace !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
+  font-family: 'Apple SD Gothic Neo', 'AppleGothic', '-apple-system', 'Malgun Gothic', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
   color: #ffffff !important;
   z-index: 9999 !important;
 }
 
 .app-container.screensaver-mode .terminal-hud-overlay span,
 .main-grid.hide-controls .terminal-hud-overlay span {
-  font-family: 'Courier New', 'Fira Code', 'Consolas', monospace !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
+  font-family: 'Apple SD Gothic Neo', 'AppleGothic', '-apple-system', 'Malgun Gothic', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
   color: #ffffff !important;
 }
 
