@@ -1655,12 +1655,22 @@ function updatePhysics() {
   // Determine active action pattern code
   state.action = determineActionCode();
 
-  // 5. Update Telemetry UI
+  // 5. Update Telemetry UI & Terminal HUD Overlay
   const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
   telX.textContent = state.x.toFixed(1);
   telY.textContent = state.y.toFixed(1);
   telR.textContent = `${Math.round(state.rotation)}°`;
   if (telD) telD.textContent = distFromCenter.toFixed(1);
+
+  // Update Large Terminal HUD Overlay
+  const hudX = document.getElementById('hud-val-x');
+  const hudY = document.getElementById('hud-val-y');
+  const hudRot = document.getElementById('hud-val-rot');
+  const hudAct = document.getElementById('hud-val-act');
+  if (hudX) hudX.textContent = state.x.toFixed(1);
+  if (hudY) hudY.textContent = state.y.toFixed(1);
+  if (hudRot) hudRot.textContent = `${Math.round(state.rotation)}°`;
+  if (hudAct) hudAct.textContent = state.action;
 
   if (telA) {
     const actionLabels = {
@@ -1673,8 +1683,8 @@ function updatePhysics() {
     };
     telA.textContent = actionLabels[state.action] !== undefined ? actionLabels[state.action] : `${state.action}`;
   }
-
 }
+
 
 function render() {
   const width = canvas.width;
@@ -1777,14 +1787,40 @@ function render() {
   }
 
 
-  // Render macOS Rainbow Pinwheel Cursor at (screenX, screenY)
+  // Render Large Glassmorphism Translucent Disk Cursor at (screenX, screenY)
   ctx.save();
   ctx.translate(screenX, screenY);
   ctx.rotate((state.rotation * Math.PI) / 180);
 
+  const glassRadius = 42; // Enlarged diameter (84px)
 
-  const pinwheelRadius = 18;
-  const pinwheelColors = ['#FF3B30', '#FFCC00', '#34C759', '#32ADE6', '#007AFF', '#AF52DE'];
+  // 1. Outer Translucent Frosted Glass Glow Aura
+  ctx.shadowColor = `hsla(${currentHue}, 100%, 65%, 0.6)`;
+  ctx.shadowBlur = 24;
+
+  // 2. Base Translucent Glass Disk Background
+  const glassRadial = ctx.createRadialGradient(0, 0, 0, 0, 0, glassRadius);
+  glassRadial.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+  glassRadial.addColorStop(0.7, 'rgba(255, 255, 255, 0.12)');
+  glassRadial.addColorStop(1, 'rgba(255, 255, 255, 0.05)');
+  ctx.fillStyle = glassRadial;
+  ctx.beginPath();
+  ctx.arc(0, 0, glassRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Reset shadow for inner elements
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+
+  // 3. Refracted Translucent Chromatic Glass Pie Sectors
+  const pinwheelColors = [
+    'rgba(255, 59, 48, 0.55)',
+    'rgba(255, 204, 0, 0.55)',
+    'rgba(52, 199, 89, 0.55)',
+    'rgba(50, 173, 230, 0.55)',
+    'rgba(0, 122, 255, 0.55)',
+    'rgba(175, 82, 222, 0.55)'
+  ];
   const sectorAngle = (Math.PI * 2) / 6;
 
   for (let i = 0; i < 6; i++) {
@@ -1793,44 +1829,63 @@ function render() {
     ctx.fillStyle = pinwheelColors[i];
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.arc(0, 0, pinwheelRadius, startA, endA);
+    ctx.arc(0, 0, glassRadius - 2, startA, endA);
     ctx.closePath();
     ctx.fill();
   }
 
-  const glossGrad = ctx.createLinearGradient(0, -pinwheelRadius, 0, pinwheelRadius);
-  glossGrad.addColorStop(0, 'rgba(255, 255, 255, 0.45)');
-  glossGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.05)');
-  glossGrad.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
-  ctx.fillStyle = glossGrad;
+  // 4. Glassmorphism Specular Highlight Dome
+  const specGrad = ctx.createLinearGradient(0, -glassRadius, 0, glassRadius);
+  specGrad.addColorStop(0, 'rgba(255, 255, 255, 0.65)');
+  specGrad.addColorStop(0.4, 'rgba(255, 255, 255, 0.15)');
+  specGrad.addColorStop(0.8, 'rgba(255, 255, 255, 0.02)');
+  specGrad.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
+  ctx.fillStyle = specGrad;
   ctx.beginPath();
-  ctx.arc(0, 0, pinwheelRadius, 0, Math.PI * 2);
+  ctx.arc(0, 0, glassRadius - 1, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+  // 5. Frosted Glass Bevel Rim Border
+  const rimGrad = ctx.createLinearGradient(-glassRadius, -glassRadius, glassRadius, glassRadius);
+  rimGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+  rimGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+  rimGrad.addColorStop(1, 'rgba(0, 243, 255, 0.8)');
+  ctx.strokeStyle = rimGrad;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, glassRadius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 6. Glowing Core White/Cyan Pearl
+  ctx.fillStyle = '#FFFFFF';
+  ctx.shadowColor = '#00f3ff';
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.arc(0, 0, 9, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
   ctx.lineWidth = 1.5;
   ctx.stroke();
+  ctx.shadowColor = 'transparent';
 
-  ctx.fillStyle = '#FFFFFF';
+  // 7. Glass Directional Pointer Arrow (At Top Edge)
+  ctx.fillStyle = '#38bdf8';
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = '#38bdf8';
+  ctx.shadowBlur = 10;
   ctx.beginPath();
-  ctx.arc(0, 0, 5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.fillStyle = '#fb923c';
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, -pinwheelRadius - 6);
-  ctx.lineTo(-5, -pinwheelRadius + 2);
-  ctx.lineTo(5, -pinwheelRadius + 2);
+  ctx.moveTo(0, -glassRadius - 12);
+  ctx.lineTo(-8, -glassRadius + 4);
+  ctx.lineTo(0, -glassRadius - 2);
+  ctx.lineTo(8, -glassRadius + 4);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
   ctx.restore();
+
   
   // Draw coordinate label near the dot (Hide in screensaver mode)
   if (!isScreensaver) {

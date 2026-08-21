@@ -82,6 +82,110 @@ body {
   opacity: 1.0 !important;
 }
 
+/* Terminal-Style Large HUD Overlay for Live Position & Rotation Angle */
+.terminal-hud-overlay {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  background: rgba(10, 16, 30, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  color: #38bdf8;
+  pointer-events: none;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.terminal-hud-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.terminal-hud-prompt {
+  color: #00ff66;
+  font-size: 16px;
+  font-weight: 900;
+  text-shadow: 0 0 8px rgba(0, 255, 102, 0.6);
+}
+
+.hud-item-box {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.terminal-hud-label {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.terminal-hud-value {
+  color: #00f3ff;
+  font-size: 18px;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(0, 243, 255, 0.5);
+  font-family: 'Fira Code', monospace;
+}
+
+.terminal-hud-rot {
+  color: #34d399;
+  font-size: 18px;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
+  font-family: 'Fira Code', monospace;
+}
+
+.terminal-hud-act {
+  color: #fbbf24;
+  font-size: 18px;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+  font-family: 'Fira Code', monospace;
+}
+
+/* Enlarge & Highlight HUD in Screensaver Mode ('S' key) */
+.app-container.screensaver-mode .terminal-hud-overlay,
+.main-grid.hide-controls .terminal-hud-overlay {
+  opacity: 1.0 !important;
+  pointer-events: auto !important;
+  transform: none !important;
+  top: 24px;
+  left: 24px;
+  padding: 16px 24px;
+  background: rgba(0, 0, 0, 0.88);
+  border: 1.5px solid rgba(0, 243, 255, 0.6);
+  box-shadow: 0 0 35px rgba(0, 243, 255, 0.3);
+  border-radius: 10px;
+}
+
+.app-container.screensaver-mode .terminal-hud-prompt,
+.main-grid.hide-controls .terminal-hud-prompt {
+  font-size: 24px;
+}
+
+.app-container.screensaver-mode .terminal-hud-label,
+.main-grid.hide-controls .terminal-hud-label {
+  font-size: 14px;
+}
+
+.app-container.screensaver-mode .terminal-hud-value,
+.app-container.screensaver-mode .terminal-hud-rot,
+.app-container.screensaver-mode .terminal-hud-act,
+.main-grid.hide-controls .terminal-hud-value,
+.main-grid.hide-controls .terminal-hud-rot,
+.main-grid.hide-controls .terminal-hud-act {
+  font-size: 26px;
+}
+
+
 
 .logo-area {
   display: flex;

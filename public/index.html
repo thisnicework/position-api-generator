@@ -374,10 +374,32 @@
         </section>
       </aside>
 
-      <!-- Right Visualizer & Logging -->
-      <main class="visualizer-container">
         <div class="canvas-wrapper" style="position: relative;">
           <div id="toggle-menu-hint" class="menu-toggle-hint" title="Press 'S' key to toggle side menu">⌨️ Press 'S' to Hide Menu</div>
+          
+          <!-- Terminal-Style Large HUD Overlay (Stays 100% Visible & Enlarged on 'S' key press) -->
+          <div id="terminal-hud-overlay" class="terminal-hud-overlay">
+            <div class="terminal-hud-line">
+              <span class="terminal-hud-prompt">&gt;_</span>
+              <div class="hud-item-box">
+                <span class="terminal-hud-label">X:</span>
+                <span id="hud-val-x" class="terminal-hud-value">2500.0</span>
+              </div>
+              <div class="hud-item-box">
+                <span class="terminal-hud-label">Y:</span>
+                <span id="hud-val-y" class="terminal-hud-value">2500.0</span>
+              </div>
+              <div class="hud-item-box">
+                <span class="terminal-hud-label">ROT:</span>
+                <span id="hud-val-rot" class="terminal-hud-rot">0°</span>
+              </div>
+              <div class="hud-item-box">
+                <span class="terminal-hud-label">ACT:</span>
+                <span id="hud-val-act" class="terminal-hud-act">4</span>
+              </div>
+            </div>
+          </div>
+
           <canvas id="gl-canvas" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index: 1;"></canvas>
           <canvas id="control-canvas" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index: 2;"></canvas>
           <div class="canvas-overlay" style="z-index: 3;">
@@ -387,6 +409,7 @@
             <span class="coordinate-marker label-top-right">(5000,5000)</span>
           </div>
         </div>
+
 
 
 
