@@ -1787,104 +1787,61 @@ function render() {
   }
 
 
-  // Render Large Glassmorphism Translucent Disk Cursor at (screenX, screenY)
+  // Render Ultra-Minimalist Fine-Art Glass Ring Cursor at (screenX, screenY)
   ctx.save();
   ctx.translate(screenX, screenY);
   ctx.rotate((state.rotation * Math.PI) / 180);
 
-  const glassRadius = 42; // Enlarged diameter (84px)
+  const glassRadius = 38; // Clean large diameter (76px)
 
-  // 1. Outer Translucent Frosted Glass Glow Aura
-  ctx.shadowColor = `hsla(${currentHue}, 100%, 65%, 0.6)`;
-  ctx.shadowBlur = 24;
+  // 1. Subtle Translucent Ambient Glow
+  ctx.shadowColor = `hsla(${currentHue}, 100%, 70%, 0.45)`;
+  ctx.shadowBlur = 18;
 
-  // 2. Base Translucent Glass Disk Background
-  const glassRadial = ctx.createRadialGradient(0, 0, 0, 0, 0, glassRadius);
-  glassRadial.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
-  glassRadial.addColorStop(0.7, 'rgba(255, 255, 255, 0.12)');
-  glassRadial.addColorStop(1, 'rgba(255, 255, 255, 0.05)');
-  ctx.fillStyle = glassRadial;
+  // 2. Translucent Pitch Dark Glass Body
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
   ctx.beginPath();
   ctx.arc(0, 0, glassRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  // Reset shadow for inner elements
+  // Reset shadow for crisp lines
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
 
-  // 3. Refracted Translucent Chromatic Glass Pie Sectors
-  const pinwheelColors = [
-    'rgba(255, 59, 48, 0.55)',
-    'rgba(255, 204, 0, 0.55)',
-    'rgba(52, 199, 89, 0.55)',
-    'rgba(50, 173, 230, 0.55)',
-    'rgba(0, 122, 255, 0.55)',
-    'rgba(175, 82, 222, 0.55)'
-  ];
-  const sectorAngle = (Math.PI * 2) / 6;
-
-  for (let i = 0; i < 6; i++) {
-    const startA = i * sectorAngle;
-    const endA = startA + sectorAngle;
-    ctx.fillStyle = pinwheelColors[i];
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, glassRadius - 2, startA, endA);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  // 4. Glassmorphism Specular Highlight Dome
-  const specGrad = ctx.createLinearGradient(0, -glassRadius, 0, glassRadius);
-  specGrad.addColorStop(0, 'rgba(255, 255, 255, 0.65)');
-  specGrad.addColorStop(0.4, 'rgba(255, 255, 255, 0.15)');
-  specGrad.addColorStop(0.8, 'rgba(255, 255, 255, 0.02)');
-  specGrad.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
-  ctx.fillStyle = specGrad;
-  ctx.beginPath();
-  ctx.arc(0, 0, glassRadius - 1, 0, Math.PI * 2);
-  ctx.fill();
-
-  // 5. Frosted Glass Bevel Rim Border
-  const rimGrad = ctx.createLinearGradient(-glassRadius, -glassRadius, glassRadius, glassRadius);
-  rimGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-  rimGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
-  rimGrad.addColorStop(1, 'rgba(0, 243, 255, 0.8)');
-  ctx.strokeStyle = rimGrad;
-  ctx.lineWidth = 2.5;
+  // 3. Ultra-Thin Glowing Neon Outer Ring
+  ctx.strokeStyle = `hsla(${currentHue}, 100%, 65%, 0.9)`;
+  ctx.lineWidth = 2.0;
   ctx.beginPath();
   ctx.arc(0, 0, glassRadius, 0, Math.PI * 2);
   ctx.stroke();
 
-  // 6. Glowing Core White/Cyan Pearl
+  // 4. Inner Subtle Glass Rim Accent
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.lineWidth = 1.0;
+  ctx.beginPath();
+  ctx.arc(0, 0, glassRadius - 4, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 5. Minimalist Center Core Dot
   ctx.fillStyle = '#FFFFFF';
   ctx.shadowColor = '#00f3ff';
-  ctx.shadowBlur = 12;
+  ctx.shadowBlur = 8;
   ctx.beginPath();
-  ctx.arc(0, 0, 9, 0, Math.PI * 2);
+  ctx.arc(0, 0, 4, 0, Math.PI * 2);
   ctx.fill();
-
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
   ctx.shadowColor = 'transparent';
 
-  // 7. Glass Directional Pointer Arrow (At Top Edge)
-  ctx.fillStyle = '#38bdf8';
-  ctx.strokeStyle = '#FFFFFF';
-  ctx.lineWidth = 1.5;
-  ctx.shadowColor = '#38bdf8';
+  // 6. Sleek Minimal Direction Pointer Notch at Top Edge
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = `hsla(${currentHue}, 100%, 70%, 0.9)`;
   ctx.shadowBlur = 10;
   ctx.beginPath();
-  ctx.moveTo(0, -glassRadius - 12);
-  ctx.lineTo(-8, -glassRadius + 4);
-  ctx.lineTo(0, -glassRadius - 2);
-  ctx.lineTo(8, -glassRadius + 4);
-  ctx.closePath();
+  ctx.arc(0, -glassRadius, 4.5, 0, Math.PI * 2);
   ctx.fill();
-  ctx.stroke();
+  ctx.shadowColor = 'transparent';
 
   ctx.restore();
+
 
   
   // Draw coordinate label near the dot (Hide in screensaver mode)
