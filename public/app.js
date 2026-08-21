@@ -323,6 +323,7 @@ let lastTransmittedState = { x: null, y: null, rotation: null, action: null };
 // --- Action Pattern Classifier State ---
 const actionTracker = {
   borderMoveStartTime: null,
+  cornerDwellStartTime: null, // Start timestamp for dwelling in 4 screen corners for Code 7
   trajectoryHistory: [], // Array of { x, y, time } for Closed Shape (닫힌 도형) loop detection
   closedShapeUntil: 0,   // Hysteresis timestamp for smooth active state
   straightMoveAccumulator: 0, // Accumulated straight linear distance along X or Y
@@ -331,6 +332,7 @@ const actionTracker = {
   yReversalTimes: [],         // Timestamps of Y-axis direction reversals
   yOscillationUntil: 0,       // Active window for Code 0 trigger (Y-oscillation 4x)
 };
+
 
 
 
@@ -656,6 +658,22 @@ function determineActionCode() {
     }
   }
 
+  // ▸ Detector E: 4 Screen Corners Dwelling Proximity (Code 7)
+  const distTL = Math.hypot(state.x - 0, state.y - 5000);
+  const distTR = Math.hypot(state.x - 5000, state.y - 5000);
+  const distBL = Math.hypot(state.x - 0, state.y - 0);
+  const distBR = Math.hypot(state.x - 5000, state.y - 0);
+  const minCornerDist = Math.min(distTL, distTR, distBL, distBR);
+  const isAtAnyCorner = minCornerDist <= 550;
+
+  if (isAtAnyCorner) {
+    if (!actionTracker.cornerDwellStartTime) {
+      actionTracker.cornerDwellStartTime = now;
+    }
+  } else {
+    actionTracker.cornerDwellStartTime = null;
+  }
+
   // ─────────────────────────────────────────────────────────
   // PHASE 2: Evaluate triggers by SPECIFICITY (most specific first)
   //          Each has EXCLUSIVE geometric criteria — no overlaps
@@ -667,11 +685,12 @@ function determineActionCode() {
     return 0;
   }
 
-  // ▶ Code 7: Top zone proximity (y near 5000, spatial exclusive)
-  if (distToTop <= 400) {
+  // ▶ Code 7: Staying near any of the 4 screen corners for 600ms+
+  if (actionTracker.cornerDwellStartTime && (now - actionTracker.cornerDwellStartTime >= 600)) {
     lastActiveTrigger = 7;
     return 7;
   }
+
 
   // ▶ Code 6: Border radial movement (distFromCenter ≥ 1400, sustained 800ms+)
   if (actionTracker.borderMoveStartTime && (now - actionTracker.borderMoveStartTime >= 800)) {
