@@ -1027,9 +1027,9 @@ function processIncomingSerialLine(line) {
     const centerY = calibYInput ? (parseFloat(calibYInput.value) || 179) : 179;
     const maxY = calibMaxYInput ? (parseFloat(calibMaxYInput.value) || 1023) : 1023;
 
-    const minRotSpan = calibMinRotInput ? (parseFloat(calibMinRotInput.value) || 25) : 25;
-    const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 10) : 10;
-    const maxRotSpan = calibMaxRotInput ? (parseFloat(calibMaxRotInput.value) || 25) : 25;
+    const minRotSpan = calibMinRotInput ? (parseFloat(calibMinRotInput.value) || 512) : 512;
+    const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 512) : 512;
+    const maxRotSpan = calibMaxRotInput ? (parseFloat(calibMaxRotInput.value) || 512) : 512;
 
     // --- Step 2: Get smoothed (filtered) sensor values ---
     const smoothX = getSmoothedValue('x');
@@ -1064,16 +1064,17 @@ function processIncomingSerialLine(line) {
     }
     if (invertY) normY = -normY;
 
-    // Rotation: Piecewise deflection normalization (-1.0 ~ +1.0)
-    let diffRot = getCircularDiff(smoothRot, centerRot);
+    // Rotation: Piecewise deflection normalization strictly using calibrated center and spans (-1.0 ~ +1.0)
+    let diffRot = smoothRot - centerRot;
 
     if (invertRot) diffRot = -diffRot;
 
     if (diffRot > 0) {
-      normRot = diffRot / Math.max(5, maxRotSpan);
+      normRot = diffRot / Math.max(1, maxRotSpan);
     } else {
-      normRot = diffRot / Math.max(5, minRotSpan);
+      normRot = diffRot / Math.max(1, minRotSpan);
     }
+
 
 
 
