@@ -82,117 +82,60 @@ body {
   opacity: 1.0 !important;
 }
 
-/* Ultra-Refined Swiss Monospace Text Overlay */
+/* Monochromatic Uniform Terminal Text Overlay (Top-Left) */
 .terminal-hud-overlay {
   position: absolute;
-  top: 24px;
-  left: 28px;
+  top: 20px;
+  left: 24px;
   z-index: 100;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
+  border-radius: 0px;
   padding: 0px;
-  font-family: 'JetBrains Mono', 'Space Mono', 'Fira Code', ui-monospace, monospace;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-
-.terminal-hud-line {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  font-family: 'Courier New', 'Fira Code', 'Consolas', monospace !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #cbd5e1 !important;
   letter-spacing: 0.5px;
+  pointer-events: none;
+  white-space: pre;
+  transition: all 0.2s ease-in-out;
 }
 
-.hud-item-box {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
+.terminal-hud-overlay span {
+  font-family: 'Courier New', 'Fira Code', 'Consolas', monospace !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #cbd5e1 !important;
 }
 
-.hud-divider {
-  color: rgba(255, 255, 255, 0.18);
-  font-size: 13px;
-  font-weight: 300;
-}
-
-.terminal-hud-label {
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 1.5px;
-  font-family: 'JetBrains Mono', monospace;
-  text-transform: uppercase;
-}
-
-.terminal-hud-value,
-.terminal-hud-rot,
-.terminal-hud-act {
-  color: #f8fafc;
-  font-size: 14px;
-  font-weight: 500;
-  font-family: 'JetBrains Mono', monospace;
-  font-feature-settings: 'tnum' 1, 'zero' 1;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.8px;
-}
-
-.terminal-hud-rot {
-  color: #38bdf8;
-}
-
-.terminal-hud-act {
-  color: #fbbf24;
-}
-
-/* Screensaver Mode ('S' key) - Pin strictly to Top-Left, refined typography */
+/* Screensaver Mode ('S' key) - Pin strictly to Top-Left, uniform size & color */
 .app-container.screensaver-mode .terminal-hud-overlay,
 .main-grid.hide-controls .terminal-hud-overlay {
   opacity: 1.0 !important;
   pointer-events: auto !important;
   transform: none !important;
   position: fixed !important;
-  top: 28px !important;
-  left: 28px !important;
+  top: 24px !important;
+  left: 24px !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
   padding: 0px !important;
+  font-family: 'Courier New', 'Fira Code', 'Consolas', monospace !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #ffffff !important;
   z-index: 9999 !important;
 }
 
-.app-container.screensaver-mode .hud-divider,
-.main-grid.hide-controls .hud-divider {
-  color: rgba(255, 255, 255, 0.25);
-  font-size: 15px;
-}
-
-.app-container.screensaver-mode .terminal-hud-label,
-.main-grid.hide-controls .terminal-hud-label {
-  font-size: 12px;
-  color: #94a3b8;
-  letter-spacing: 1.8px;
-}
-
-.app-container.screensaver-mode .terminal-hud-value,
-.main-grid.hide-controls .terminal-hud-value {
-  font-size: 17px;
-  color: #ffffff;
-  font-weight: 600;
-}
-
-.app-container.screensaver-mode .terminal-hud-rot,
-.main-grid.hide-controls .terminal-hud-rot {
-  font-size: 17px;
-  color: #38bdf8;
-  font-weight: 600;
-}
-
-.app-container.screensaver-mode .terminal-hud-act,
-.main-grid.hide-controls .terminal-hud-act {
-  font-size: 17px;
-  color: #fbbf24;
-  font-weight: 600;
+.app-container.screensaver-mode .terminal-hud-overlay span,
+.main-grid.hide-controls .terminal-hud-overlay span {
+  font-family: 'Courier New', 'Fira Code', 'Consolas', monospace !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #ffffff !important;
 }
 
 

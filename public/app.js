@@ -1789,28 +1789,52 @@ function render() {
   }
 
 
-  // Render Single Precision Guide Point Dot Cursor at (screenX, screenY)
+  // Render Large Flashlight / Spotlight Beam Circle Cursor at (screenX, screenY)
   ctx.save();
   ctx.translate(screenX, screenY);
 
-  // Outer Subtle Soft Glow
-  ctx.shadowColor = `hsla(${currentHue}, 100%, 75%, 0.8)`;
-  ctx.shadowBlur = 12;
+  const flashlightRadius = 140; // Large Flashlight Beam Diameter (280px)
 
-  // Single Precision Core Dot
-  ctx.fillStyle = '#FFFFFF';
+  // 1. Soft Radial Flashlight Beam Light Projection
+  const flashlightGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, flashlightRadius);
+  flashlightGrad.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+  flashlightGrad.addColorStop(0.4, `hsla(${currentHue}, 100%, 70%, 0.14)`);
+  flashlightGrad.addColorStop(0.75, `hsla(${currentHue}, 100%, 60%, 0.05)`);
+  flashlightGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+  ctx.fillStyle = flashlightGrad;
   ctx.beginPath();
-  ctx.arc(0, 0, 5, 0, Math.PI * 2);
+  ctx.arc(0, 0, flashlightRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  // Subtle Outer Pearl Ring
-  ctx.strokeStyle = `hsla(${currentHue}, 100%, 70%, 0.9)`;
+  // 2. Soft Outer Flashlight Light Ring
+  ctx.shadowColor = `hsla(${currentHue}, 100%, 70%, 0.6)`;
+  ctx.shadowBlur = 24;
+
+  ctx.strokeStyle = `hsla(${currentHue}, 100%, 75%, 0.55)`;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.arc(0, 0, 8, 0, Math.PI * 2);
+  ctx.arc(0, 0, flashlightRadius, 0, Math.PI * 2);
   ctx.stroke();
 
+  // 3. Inner Subtle Specular Ring
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.lineWidth = 1.0;
+  ctx.beginPath();
+  ctx.arc(0, 0, flashlightRadius - 10, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 4. Center Flashlight Bulb Core Dot
+  ctx.shadowColor = '#00f3ff';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  ctx.arc(0, 0, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowColor = 'transparent';
   ctx.restore();
+
 
 
 
