@@ -324,6 +324,7 @@ let lastTransmittedState = { x: null, y: null, rotation: null, action: null };
 const actionTracker = {
   borderMoveStartTime: null,
   cornerDwellStartTime: null, // Start timestamp for dwelling in 4 screen corners for Code 7
+  bottomLeftPushStartTime: null, // Start timestamp for pushing into Bottom-Left corner for Code 5
   trajectoryHistory: [], // Array of { x, y, time } for Closed Shape (닫힌 도형) loop detection
   closedShapeUntil: 0,   // Hysteresis timestamp for smooth active state
   straightMoveAccumulator: 0, // Accumulated straight linear distance along X or Y
@@ -332,6 +333,7 @@ const actionTracker = {
   yReversalTimes: [],         // Timestamps of Y-axis direction reversals
   yOscillationUntil: 0,       // Active window for Code 0 trigger (Y-oscillation 4x)
 };
+
 
 
 
@@ -680,6 +682,18 @@ function determineActionCode() {
     actionTracker.cornerDwellStartTime = null;
   }
 
+  // ▸ Detector F: Bottom-Left Corner Outward Push Movement (Code 5)
+  const isNearBottomLeft = distBL <= 650;
+  const isPushingBottomLeft = isNearBottomLeft && (state.vx < -0.1 || state.vy < -0.1 || (state.x <= 350 && state.y <= 350));
+
+  if (isPushingBottomLeft) {
+    if (!actionTracker.bottomLeftPushStartTime) {
+      actionTracker.bottomLeftPushStartTime = now;
+    }
+  } else {
+    actionTracker.bottomLeftPushStartTime = null;
+  }
+
   // ─────────────────────────────────────────────────────────
   // PHASE 2: Evaluate triggers by SPECIFICITY (most specific first)
   //          Each has EXCLUSIVE geometric criteria — no overlaps
@@ -691,11 +705,18 @@ function determineActionCode() {
     return 0;
   }
 
-  // ▶ Code 7: Staying near any of the 4 screen corners for 600ms+
+  // ▶ Code 5: Pushing continuously into Bottom-Left Corner (0,0) for 600ms+
+  if (actionTracker.bottomLeftPushStartTime && (now - actionTracker.bottomLeftPushStartTime >= 600)) {
+    lastActiveTrigger = 5;
+    return 5;
+  }
+
+  // ▶ Code 7: Staying near remaining 3 screen corners for 600ms+
   if (actionTracker.cornerDwellStartTime && (now - actionTracker.cornerDwellStartTime >= 600)) {
     lastActiveTrigger = 7;
     return 7;
   }
+
 
 
   // ▶ Code 6: Border radial movement (distFromCenter ≥ 1400, sustained 800ms+)
@@ -1833,13 +1854,16 @@ function updatePhysics() {
 
   if (telA) {
     const actionLabels = {
+      0: '0 (Y-Axis Pure Oscillation)',
       1: '1 (Circling / Closed Loop)',
       2: '2 (Rotate Slow 느린 회전)',
       3: '3 (Rotate Fast 빠른 회전)',
       4: '4 (Default 기본)',
-      6: '6 (Border Push >= 0.8s)',
-      7: '7 (Near Top 2500, 5000)',
+      5: '5 (Bottom-Left Corner Push)',
+      6: '6 (Outer Border Push >= 0.6s)',
+      7: '7 (Screen Corners Dwelling)',
     };
+
     telA.textContent = actionLabels[state.action] !== undefined ? actionLabels[state.action] : `${state.action}`;
   }
 }
