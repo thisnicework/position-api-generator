@@ -218,18 +218,14 @@ function getSmoothedRotation(centerRot = 10) {
   if (arr.length === 0) return 0;
   if (arr.length === 1) return arr[0];
 
-  // Unwrap circular difference relative to centerRot to avoid sine/cosine non-linear distortion
-  const unwrapped = arr.map(val => centerRot + getCircularDiff(val, centerRot));
-  const sorted = [...unwrapped].sort((a, b) => a - b);
-  
+  const sorted = [...arr].sort((a, b) => a - b);
   if (sorted.length >= 5) {
     const trimmed = sorted.slice(1, sorted.length - 1);
-    const avg = trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
-    return ((avg % 360) + 360) % 360;
+    return trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
   }
-  const avg = sorted.reduce((s, v) => s + v, 0) / sorted.length;
-  return ((avg % 360) + 360) % 360;
+  return sorted.reduce((s, v) => s + v, 0) / sorted.length;
 }
+
 
 
 
