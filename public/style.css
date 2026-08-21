@@ -82,122 +82,70 @@ body {
   opacity: 1.0 !important;
 }
 
-/* Authentic MATLAB / UNIX Terminal Header HUD Overlay */
+/* Ultra-Minimalist Top-Left Text Overlay (No Box, No Border, Clean Monospace) */
 .terminal-hud-overlay {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  top: 20px;
+  left: 24px;
   z-index: 100;
-  background: #050811;
-  border: 1px solid #0072bd;
-  box-shadow: 0 0 15px rgba(0, 114, 189, 0.35);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   border-radius: 0px;
-  padding: 8px 14px;
+  padding: 0px;
   font-family: 'Fira Code', 'Consolas', 'Courier New', monospace;
-  color: #00f3ff;
   pointer-events: none;
   transition: all 0.2s ease-in-out;
-}
-
-.terminal-hud-header-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border-bottom: 1px solid #1e293b;
-  padding-bottom: 4px;
-  margin-bottom: 8px;
-}
-
-.hud-term-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-.hud-term-dot.red { background: #ff5f56; }
-.hud-term-dot.yellow { background: #ffbd2e; }
-.hud-term-dot.green { background: #27c93f; }
-
-.hud-term-title {
-  font-size: 10px;
-  color: #64748b;
-  font-weight: 700;
-  letter-spacing: 1px;
-  margin-left: 4px;
 }
 
 .terminal-hud-line {
   display: flex;
   align-items: center;
-  gap: 16px;
-}
-
-.terminal-hud-prompt {
-  color: #00ff66;
-  font-size: 16px;
-  font-weight: 900;
+  gap: 18px;
 }
 
 .hud-item-box {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 4px;
 }
 
 .terminal-hud-label {
-  color: #94a3b8;
-  font-size: 11px;
+  color: #64748b;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 
-.terminal-hud-value {
-  color: #00f3ff;
-  font-size: 18px;
-  font-weight: 800;
-  font-family: 'Fira Code', 'Consolas', monospace;
-}
-
-.terminal-hud-rot {
-  color: #00ff66;
-  font-size: 18px;
-  font-weight: 800;
-  font-family: 'Fira Code', 'Consolas', monospace;
-}
-
+.terminal-hud-value,
+.terminal-hud-rot,
 .terminal-hud-act {
-  color: #ffc700;
-  font-size: 18px;
-  font-weight: 800;
+  color: #e2e8f0;
+  font-size: 15px;
+  font-weight: 700;
   font-family: 'Fira Code', 'Consolas', monospace;
 }
 
-/* Enlarge & Pin HUD strictly to Top-Left in Screensaver Mode ('S' key) */
+/* Screensaver Mode ('S' key) - Pin strictly to Top-Left, enlarge text slightly without box/border */
 .app-container.screensaver-mode .terminal-hud-overlay,
 .main-grid.hide-controls .terminal-hud-overlay {
   opacity: 1.0 !important;
   pointer-events: auto !important;
   transform: none !important;
   position: fixed !important;
-  top: 20px !important;
-  left: 20px !important;
-  right: auto !important;
-  bottom: auto !important;
-  padding: 14px 22px;
-  background: #000000 !important;
-  border: 1.5px solid #00ff66 !important;
-  box-shadow: 0 0 25px rgba(0, 255, 102, 0.3) !important;
-  border-radius: 0px !important;
+  top: 24px !important;
+  left: 24px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0px !important;
   z-index: 9999 !important;
-}
-
-.app-container.screensaver-mode .terminal-hud-prompt,
-.main-grid.hide-controls .terminal-hud-prompt {
-  font-size: 26px;
 }
 
 .app-container.screensaver-mode .terminal-hud-label,
 .main-grid.hide-controls .terminal-hud-label {
-  font-size: 14px;
+  font-size: 13px;
+  color: #94a3b8;
 }
 
 .app-container.screensaver-mode .terminal-hud-value,
@@ -206,8 +154,10 @@ body {
 .main-grid.hide-controls .terminal-hud-value,
 .main-grid.hide-controls .terminal-hud-rot,
 .main-grid.hide-controls .terminal-hud-act {
-  font-size: 28px;
+  font-size: 18px;
+  color: #ffffff;
 }
+
 
 
 

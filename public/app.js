@@ -1789,72 +1789,29 @@ function render() {
   }
 
 
-  // Render Julia Plots.jl / MATLAB Scientific Vector Plot Marker at (screenX, screenY)
+  // Render Single Precision Guide Point Dot Cursor at (screenX, screenY)
   ctx.save();
   ctx.translate(screenX, screenY);
 
-  const markerRadius = 26; // Precision scientific plot marker radius (52px diameter)
-  const radAngle = (state.rotation * Math.PI) / 180;
-
-  // 1. MATLAB/Julia Quiver Vector Ray Arrow pointing in direction of state.rotation
-  const vecLength = 52; // Vector arrow length
-  const tipX = Math.sin(radAngle) * vecLength; // 0 deg is UP (-Y)
-  const tipY = -Math.cos(radAngle) * vecLength;
-
-  ctx.save();
-  ctx.shadowColor = `hsla(${currentHue}, 100%, 65%, 0.6)`;
+  // Outer Subtle Soft Glow
+  ctx.shadowColor = `hsla(${currentHue}, 100%, 75%, 0.8)`;
   ctx.shadowBlur = 12;
-  ctx.strokeStyle = `hsla(${currentHue}, 100%, 65%, 0.95)`; // Julia/MATLAB Dynamic Vector Line
-  ctx.lineWidth = 2.2;
+
+  // Single Precision Core Dot
+  ctx.fillStyle = '#FFFFFF';
   ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(tipX, tipY);
+  ctx.arc(0, 0, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Subtle Outer Pearl Ring
+  ctx.strokeStyle = `hsla(${currentHue}, 100%, 70%, 0.9)`;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, 8, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Draw Arrowhead Tip for Vector Quiver
-  const arrowAngle = Math.atan2(tipY, tipX);
-  const headLen = 11;
-  ctx.fillStyle = `hsla(${currentHue}, 100%, 65%, 0.95)`;
-  ctx.beginPath();
-  ctx.moveTo(tipX, tipY);
-  ctx.lineTo(tipX - headLen * Math.cos(arrowAngle - Math.PI / 6), tipY - headLen * Math.sin(arrowAngle - Math.PI / 6));
-  ctx.lineTo(tipX - headLen * Math.cos(arrowAngle + Math.PI / 6), tipY - headLen * Math.sin(arrowAngle + Math.PI / 6));
-  ctx.closePath();
-  ctx.fill();
   ctx.restore();
 
-  // 2. Scientific Marker Outer Circle (MATLAB 'o' plot marker)
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-  ctx.lineWidth = 1.8;
-  ctx.fillStyle = 'rgba(10, 16, 30, 0.65)';
-  ctx.beginPath();
-  ctx.arc(0, 0, markerRadius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // 3. Precision Scientific Radar Tick Marks at 0, 90, 180, 270 deg
-  ctx.strokeStyle = `hsla(${currentHue}, 100%, 70%, 0.75)`;
-  ctx.lineWidth = 1.2;
-  const tickInner = markerRadius - 4;
-  const tickOuter = markerRadius + 5;
-  
-  [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].forEach(ang => {
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(ang) * tickInner, Math.sin(ang) * tickInner);
-    ctx.lineTo(Math.cos(ang) * tickOuter, Math.sin(ang) * tickOuter);
-    ctx.stroke();
-  });
-
-  // 4. Center Precision Focus Dot (Julia Plots.jl Marker Core)
-  ctx.fillStyle = '#00ff66';
-  ctx.shadowColor = '#00ff66';
-  ctx.shadowBlur = 10;
-  ctx.beginPath();
-  ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowColor = 'transparent';
-
-  ctx.restore();
 
 
 
