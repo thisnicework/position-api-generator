@@ -564,11 +564,17 @@ function determineActionCode() {
   // Update trajectory points
   updateTrajectory(now);
 
-  // --- Y-Axis Rapid Oscillation (Up & Down 4 Times) Detection for Action Code 0 ---
+  // --- Y-Axis Pure Oscillation (Up & Down 4 Times, NO X Movement) for Action Code 0 ---
+  const isXStationary = Math.abs(state.vx) < 1.2;
   const currentYDir = Math.abs(state.vy) >= 1.0 ? Math.sign(state.vy) : 0;
-  if (currentYDir !== 0 && actionTracker.lastYDir !== 0 && currentYDir !== actionTracker.lastYDir) {
+
+  if (isXStationary && currentYDir !== 0 && actionTracker.lastYDir !== 0 && currentYDir !== actionTracker.lastYDir) {
     actionTracker.yReversalTimes.push(now);
+  } else if (!isXStationary) {
+    // If X-axis moves horizontally, clear Y-oscillation state so it never conflicts with 2D circles (Code 1)
+    actionTracker.yReversalTimes = [];
   }
+
   if (currentYDir !== 0) {
     actionTracker.lastYDir = currentYDir;
   }
@@ -579,17 +585,29 @@ function determineActionCode() {
     actionTracker.yReversalTimes.shift();
   }
 
-  // When Y-axis direction flips 4 or more times within 2.5s (4 reversals = 2 full up-down cycles), trigger Code 0!
-  if (actionTracker.yReversalTimes.length >= 4) {
+  // Calculate X-axis variation (span) over the past 2.5 seconds
+  const recentHistory = actionTracker.trajectoryHistory.filter(pt => now - pt.time <= 2500);
+  let recentMinX = state.x, recentMaxX = state.x;
+  recentHistory.forEach(pt => {
+    recentMinX = Math.min(recentMinX, pt.x);
+    recentMaxX = Math.max(recentMaxX, pt.x);
+  });
+  const recentXSpan = recentMaxX - recentMinX;
+
+  // Code 0 Trigger Criteria:
+  // 1. At least 4 Y-axis direction reversals within 2.5s (2 full up-down cycles)
+  // 2. X-axis total variation is <= 100px (strictly linear Y-only pendulum movement, NO 2D circle/curve!)
+  if (actionTracker.yReversalTimes.length >= 4 && recentXSpan <= 100) {
     actionTracker.yOscillationUntil = now + 1500; // Keep Code 0 active for 1.5s
     actionTracker.yReversalTimes = []; // Reset reversal list after trigger
   }
 
-  // Active trigger for Y-Axis 4x Rapid Oscillation -> Output Code 0!
-  if (now < actionTracker.yOscillationUntil) {
+  // Active trigger for Pure Y-Axis 4x Oscillation -> Output Code 0!
+  if (now < actionTracker.yOscillationUntil && recentXSpan <= 150) {
     lastActiveTrigger = 0;
     return 0;
   }
+
 
   // Accumulate straight X/Y linear movement to trigger Action Code 4
   const isMovingStraight = linearSpeed >= 0.8 && rotSpeed < 0.35;
