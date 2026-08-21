@@ -215,16 +215,21 @@ function getSmoothedValue(axis) {
 
 function getSmoothedRotation(centerRot = 10) {
   const arr = sensorHistory.rot;
-  if (arr.length === 0) return 0;
+  if (arr.length === 0) return centerRot;
   if (arr.length === 1) return arr[0];
 
-  const sorted = [...arr].sort((a, b) => a - b);
-  if (sorted.length >= 5) {
-    const trimmed = sorted.slice(1, sorted.length - 1);
-    return trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
+  // Circular mean using atan2 — correctly handles 0°/360° wraparound
+  // e.g. [355, 358, 2, 5, 8] → correctly averages to ~1.6° instead of broken 145°
+  let sinSum = 0, cosSum = 0;
+  for (let i = 0; i < arr.length; i++) {
+    const rad = (arr[i] * Math.PI) / 180;
+    sinSum += Math.sin(rad);
+    cosSum += Math.cos(rad);
   }
-  return sorted.reduce((s, v) => s + v, 0) / sorted.length;
+  let avgDeg = (Math.atan2(sinSum, cosSum) * 180) / Math.PI;
+  return ((avgDeg % 360) + 360) % 360;
 }
+
 
 
 
@@ -749,9 +754,7 @@ window.addEventListener('keydown', (e) => {
   const targetKey = codeMap[e.code] || (e.key === ' ' ? 'Space' : e.key);
   if (targetKey in keys) {
     keys[targetKey] = true;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(targetKey)) {
-      e.preventDefault();
-    }
+    e.preventDefault();
   }
 });
 
@@ -767,6 +770,7 @@ window.addEventListener('keyup', (e) => {
     keys[targetKey] = false;
   }
 });
+
 
 
 
@@ -1025,9 +1029,8 @@ function processIncomingSerialLine(line) {
     if (invertY) normY = -normY;
 
     // Rotation: Piecewise deflection normalization (-1.0 ~ +1.0)
-    let diffRot = smoothRot - centerRot;
-    if (diffRot > 180 && centerRot <= 180 && smoothRot > 180) diffRot -= 360;
-    if (diffRot < -180 && centerRot >= 180 && smoothRot < 180) diffRot += 360;
+    // getCircularDiff always returns [-180, +180] — handles 0°/360° wraparound for both CW and CCW
+    let diffRot = getCircularDiff(smoothRot, centerRot);
 
     if (invertRot) diffRot = -diffRot;
 
@@ -1036,6 +1039,7 @@ function processIncomingSerialLine(line) {
     } else {
       normRot = diffRot / Math.max(1, minRotSpan);
     }
+
 
 
 
