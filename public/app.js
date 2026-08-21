@@ -257,15 +257,16 @@ const state = {
 
 
 const settings = {
-  maxSpeed: 250.0,         // Fast & smooth movement speed (0..5000 map)
-  acceleration: 20.0,      // Smooth acceleration
+  maxSpeed: 75.0,          // Controlled & smooth movement speed (0..5000 map)
+  acceleration: 10.0,      // Smooth acceleration
   friction: 0.88,          // Natural deceleration
-  rotationSpeed: 4.0,      // Smooth keyboard rotation speed
-  maxRotationSpeed: 8.0,   // Controlled max rotation speed (480 deg/sec)
+  rotationSpeed: 3.0,      // Smooth keyboard rotation speed
+  maxRotationSpeed: 5.0,   // Controlled max rotation speed
   rotationFriction: 0.85,  // Natural rotation deceleration
   canvasRangeX: 5000,       // Coordinate mapping width (0..5000)
   canvasRangeY: 5000,       // Coordinate mapping height (0..5000)
 };
+
 
 
 
@@ -720,24 +721,39 @@ window.addEventListener('keydown', (e) => {
 
   if (isTyping) return;
 
-  if (e.key === 's' || e.key === 'S' || e.code === 'KeyS') {
-    // If Shift or S key is pressed, toggle menu, but also allow down movement
+  if (e.code === 'KeyS' && !e.repeat) {
     toggleControlPanel();
   }
 
-  const key = e.key === ' ' ? 'Space' : e.key;
-  if (key in keys) {
-    keys[key] = true;
-    e.preventDefault();
+  // Map Physical Keyboard Codes & Keys (Works seamlessly with Korean IME & all OS layouts)
+  const codeMap = {
+    KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd',
+    KeyQ: 'q', KeyE: 'e', ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown',
+    ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', Space: 'Space'
+  };
+
+  const targetKey = codeMap[e.code] || (e.key === ' ' ? 'Space' : e.key);
+  if (targetKey in keys) {
+    keys[targetKey] = true;
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(targetKey)) {
+      e.preventDefault();
+    }
   }
 });
 
 window.addEventListener('keyup', (e) => {
-  const key = e.key === ' ' ? 'Space' : e.key;
-  if (key in keys) {
-    keys[key] = false;
+  const codeMap = {
+    KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd',
+    KeyQ: 'q', KeyE: 'e', ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown',
+    ArrowLeft: 'ArrowLeft', ArrowRight: 'ArrowRight', Space: 'Space'
+  };
+
+  const targetKey = codeMap[e.code] || (e.key === ' ' ? 'Space' : e.key);
+  if (targetKey in keys) {
+    keys[targetKey] = false;
   }
 });
+
 
 
 
@@ -767,10 +783,11 @@ const speedSliderValSpan = document.getElementById('speed-slider-val');
 
 if (joystickSpeedSlider && speedSliderValSpan) {
   joystickSpeedSlider.addEventListener('input', (e) => {
-    const mult = parseFloat(e.target.value) || 1.5;
+    const mult = parseFloat(e.target.value) || 0.8;
     speedSliderValSpan.textContent = `${mult.toFixed(1)}x`;
   });
 }
+
 
 const joystickDeadzoneSlider = document.getElementById('joystick-deadzone-slider');
 const deadzoneSliderValSpan = document.getElementById('deadzone-slider-val');
@@ -994,14 +1011,18 @@ function processIncomingSerialLine(line) {
     if (invertY) normY = -normY;
 
     // Rotation: Piecewise deflection normalization (-1.0 ~ +1.0)
-    let diffRot = getCircularDiff(smoothRot, centerRot);
+    let diffRot = smoothRot - centerRot;
+    if (diffRot > 180 && centerRot <= 180 && smoothRot > 180) diffRot -= 360;
+    if (diffRot < -180 && centerRot >= 180 && smoothRot < 180) diffRot += 360;
+
     if (invertRot) diffRot = -diffRot;
 
     if (diffRot > 0) {
-      normRot = diffRot / Math.max(5, maxRotSpan);
+      normRot = diffRot / Math.max(1, maxRotSpan);
     } else {
-      normRot = diffRot / Math.max(5, minRotSpan);
+      normRot = diffRot / Math.max(1, minRotSpan);
     }
+
 
 
 
@@ -1021,8 +1042,9 @@ function processIncomingSerialLine(line) {
 
 
     // --- Step 5: LERP smoothing on velocity output (prevents any remaining spikes) ---
-    const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 2.0) : 2.0;
+    const speedMult = joystickSpeedSlider ? (parseFloat(joystickSpeedSlider.value) || 0.8) : 0.8;
     const LERP = 0.4;  // Smooth blend factor (0=frozen, 1=instant)
+
 
     const targetVx = normX * (settings.maxSpeed * speedMult);
     const targetVy = normY * (settings.maxSpeed * speedMult);
@@ -1526,16 +1548,23 @@ function startTransmissionLoop() {
 }
 
 // --- Transmit State via HTTP POST ---
+let isTransmitting = false; // Prevent async HTTP request overlap
+
 function transmitState() {
   const currentX = parseFloat(state.x.toFixed(2));
   const currentY = parseFloat(state.y.toFixed(2));
   const currentRotation = Math.round(state.rotation);
-  const currentAction = state.action !== undefined ? state.action : 3;
+  const currentAction = state.action !== undefined ? state.action : 4;
 
   const monitorsHash = JSON.stringify(monitorQueue);
+  const now = Date.now();
 
-  // Skip sending only if coordinates, action, AND monitor shift queue haven't changed
+  // Heartbeat check: force transmit at least once every 400ms even if position is idle
+  const timeSinceLastTransmit = now - (lastTransmittedState.timestamp || 0);
+  const isHeartbeatDue = timeSinceLastTransmit >= 400;
+
   if (
+    !isHeartbeatDue &&
     currentX === lastTransmittedState.x &&
     currentY === lastTransmittedState.y &&
     currentRotation === lastTransmittedState.rotation &&
@@ -1545,15 +1574,19 @@ function transmitState() {
     return;
   }
 
+  // Prevent overlapping pending HTTP fetch requests
+  if (isTransmitting) return;
+  isTransmitting = true;
+
   // Update last transmitted values
   lastTransmittedState = {
     x: currentX,
     y: currentY,
     rotation: currentRotation,
     action: currentAction,
-    monitorsHash: monitorsHash
+    monitorsHash: monitorsHash,
+    timestamp: now
   };
-
 
   const payload = {
     x: currentX,
@@ -1562,9 +1595,8 @@ function transmitState() {
     action: currentAction,
     monitors: [...monitorQueue],
     monitorDelay: monitorDelayMs,
-    timestamp: Date.now()
+    timestamp: now
   };
-
 
   fetch(apiEndpoint, {
     method: 'POST',
@@ -1581,8 +1613,12 @@ function transmitState() {
   .catch(err => {
     logTerminal('error', `Transmit fail: ${err.message}`);
     updateConnectionStatus('disconnected', 'ERROR');
+  })
+  .finally(() => {
+    isTransmitting = false;
   });
 }
+
 
 function logTransmission(payload, statusText) {
   const monStr = Array.isArray(payload.monitors) 

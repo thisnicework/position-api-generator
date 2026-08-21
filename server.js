@@ -109,11 +109,36 @@ app.post('/api/state', (req, res) => {
 });
 
 
-// HTTP GET endpoint to retrieve the latest state
-app.get('/api/state', (req, res) => {
+// Enhanced HTTP GET endpoint supporting per-monitor index queries (?monitor=N or /api/state/N)
+app.get(['/api/state', '/api/state/:monitorIndex'], (req, res) => {
+  const reqMon = req.params.monitorIndex !== undefined ? req.params.monitorIndex : req.query.monitor;
   const mons = Array.isArray(latestState.monitors) ? latestState.monitors : [latestState.action, null, null, null, null, null, null];
+
+  if (reqMon !== undefined && reqMon !== null && reqMon !== '') {
+    const mIdx = parseInt(reqMon, 10);
+    if (!isNaN(mIdx) && mIdx >= 0 && mIdx < 7) {
+      const item = mons[mIdx];
+      const snapshot = (item && typeof item === 'object') ? item : { action: item, x: latestState.x, y: latestState.y, rotation: latestState.rotation };
+      const executeAt = latestState.timestamp + (mIdx * defaultMonitorDelayMs);
+
+      return res.json({
+        status: 'ok',
+        monitorIndex: mIdx,
+        executeAt: executeAt,
+        delayMs: defaultMonitorDelayMs,
+        x: snapshot && typeof snapshot.x === 'number' ? snapshot.x : latestState.x,
+        y: snapshot && typeof snapshot.y === 'number' ? snapshot.y : latestState.y,
+        rotation: snapshot && typeof snapshot.rotation === 'number' ? snapshot.rotation : latestState.rotation,
+        action: snapshot && typeof snapshot.action === 'number' ? snapshot.action : latestState.action,
+        snapshot: snapshot,
+        globalState: latestState
+      });
+    }
+  }
+
   res.json({
     ...latestState,
+    monitorDelay: defaultMonitorDelayMs,
     monitorActions: {
       "0": mons[0] !== undefined ? mons[0] : null,
       "1": mons[1] !== undefined ? mons[1] : null,
@@ -125,6 +150,7 @@ app.get('/api/state', (req, res) => {
     }
   });
 });
+
 
 
 server.on('upgrade', (request, socket, head) => {

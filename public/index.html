@@ -123,10 +123,11 @@
             <div class="form-group" style="margin-bottom: 8px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <label for="joystick-speed-slider">Speed Multiplier (이동 & 회전 속도 배율)</label>
-                <span id="speed-slider-val" style="font-size: 11px; font-weight: 700; color: #0072bd;">3.0x</span>
+                <span id="speed-slider-val" style="font-size: 11px; font-weight: 700; color: #0072bd;">0.8x</span>
               </div>
-              <input type="range" id="joystick-speed-slider" min="0.5" max="20.0" step="0.5" value="3.0" style="width: 100%;">
+              <input type="range" id="joystick-speed-slider" min="0.1" max="5.0" step="0.1" value="0.8" style="width: 100%;">
             </div>
+
 
 
 
@@ -230,15 +231,16 @@
 
             <div class="checkbox-group" style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">
               <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: normal; margin: 0;">
-                <input type="checkbox" id="serial-invert-x" checked> Invert X Axis (X축 방향 반전)
+                <input type="checkbox" id="serial-invert-x"> Invert X Axis (X축 방향 반전)
               </label>
               <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: normal; margin: 0;">
-                <input type="checkbox" id="serial-invert-y" checked> Invert Y Axis (Y축 방향 반전)
+                <input type="checkbox" id="serial-invert-y"> Invert Y Axis (Y축 방향 반전)
               </label>
               <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: normal; margin: 0;">
                 <input type="checkbox" id="serial-invert-rot"> Invert Rotation Direction (회전 방향 반전)
               </label>
             </div>
+
 
 
             <div class="checkbox-group" style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted);">
