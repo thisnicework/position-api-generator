@@ -311,7 +311,10 @@ const actionTracker = {
   borderMoveStartTime: null,
   trajectoryHistory: [], // Array of { x, y, time } for Closed Shape (닫힌 도형) loop detection
   closedShapeUntil: 0,   // Hysteresis timestamp for smooth active state
+  straightMoveAccumulator: 0, // Accumulated straight linear distance along X or Y
+  straightMoveUntil: 0,       // Active window for Code 4 trigger when straight movement accumulates
 };
+
 
 // --- 7 Monitors (0~6) Action FIFO Shift Queue State ---
 // Monitor 0 to 6 queue holding full snapshots { x, y, rotation, action, timestamp } (Length 7)
@@ -556,7 +559,28 @@ function determineActionCode() {
   // Update trajectory points
   updateTrajectory(now);
 
+  // Accumulate straight X/Y linear movement to trigger Action Code 4
+  const isMovingStraight = linearSpeed >= 0.8 && rotSpeed < 0.35;
+  if (isMovingStraight) {
+    actionTracker.straightMoveAccumulator += linearSpeed;
+    if (actionTracker.straightMoveAccumulator >= 120) {
+      actionTracker.straightMoveUntil = now + 1500; // Keep Code 4 active for 1.5s upon accumulating straight movement
+      actionTracker.straightMoveAccumulator = 0;
+    }
+  } else if (linearSpeed < 0.2) {
+    actionTracker.straightMoveAccumulator = Math.max(0, actionTracker.straightMoveAccumulator - 2.0);
+  } else {
+    actionTracker.straightMoveAccumulator = 0;
+  }
+
+  // Active trigger for accumulated straight linear movement -> Output Code 4!
+  if (now < actionTracker.straightMoveUntil) {
+    lastActiveTrigger = 4;
+    return 4;
+  }
+
   let rawAction = 4;
+
 
   // Mode 7: (2500, 5000) 상단 영역 근접 (shifted from 6)
   if (distToTop <= 400) {
