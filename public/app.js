@@ -555,147 +555,144 @@ function determineActionCode() {
     return manualActionOverride;
   }
 
-  const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
-
-  const distToTop = Math.hypot(state.x - 2500, state.y - 5000);
+  const now = Date.now();
   const linearSpeed = Math.hypot(state.vx, state.vy);
   const rotSpeed = Math.abs(state.vRotation);
-  const now = Date.now();
+  const distFromCenter = Math.hypot(state.x - 2500, state.y - 2500);
+  const distToTop = Math.hypot(state.x - 2500, state.y - 5000);
 
-  // Update trajectory points
+  // Update trajectory points (always, regardless of which trigger fires)
   updateTrajectory(now);
 
-  // --- Y-Axis Pure Oscillation (Up & Down 4 Times, NO X Movement) for Action Code 0 ---
-  const isXStationary = Math.abs(state.vx) < 1.2;
-  const currentYDir = Math.abs(state.vy) >= 1.0 ? Math.sign(state.vy) : 0;
+  // ─────────────────────────────────────────────────────────
+  // PHASE 1: Accumulate/update ALL detector states independently
+  //          (No early returns here — every detector gets updated)
+  // ─────────────────────────────────────────────────────────
 
-  if (isXStationary && currentYDir !== 0 && actionTracker.lastYDir !== 0 && currentYDir !== actionTracker.lastYDir) {
-    actionTracker.yReversalTimes.push(now);
-  } else if (!isXStationary) {
-    // If X-axis moves horizontally, clear Y-oscillation state so it never conflicts with 2D circles (Code 1)
-    actionTracker.yReversalTimes = [];
+  // ▸ Detector A: Y-Axis Pure Oscillation (Code 0)
+  const isXStationary = Math.abs(state.vx) < 1.5;
+  const currentYDir = Math.abs(state.vy) >= 0.8 ? Math.sign(state.vy) : 0;
+
+  if (currentYDir !== 0 && actionTracker.lastYDir !== 0 && currentYDir !== actionTracker.lastYDir) {
+    if (isXStationary) {
+      actionTracker.yReversalTimes.push(now);
+    }
   }
-
   if (currentYDir !== 0) {
     actionTracker.lastYDir = currentYDir;
   }
 
-  // Filter out Y-axis reversals older than 2.5 seconds (2500 ms)
-  const yCutoff = now - 2500;
-  while (actionTracker.yReversalTimes.length > 0 && actionTracker.yReversalTimes[0] < yCutoff) {
+  while (actionTracker.yReversalTimes.length > 0 && actionTracker.yReversalTimes[0] < now - 2500) {
     actionTracker.yReversalTimes.shift();
   }
 
-  // Calculate X-axis variation (span) over the past 2.5 seconds
   const recentHistory = actionTracker.trajectoryHistory.filter(pt => now - pt.time <= 2500);
   let recentMinX = state.x, recentMaxX = state.x;
+  let recentMinY = state.y, recentMaxY = state.y;
   recentHistory.forEach(pt => {
     recentMinX = Math.min(recentMinX, pt.x);
     recentMaxX = Math.max(recentMaxX, pt.x);
+    recentMinY = Math.min(recentMinY, pt.y);
+    recentMaxY = Math.max(recentMaxY, pt.y);
   });
   const recentXSpan = recentMaxX - recentMinX;
+  const recentYSpan = recentMaxY - recentMinY;
 
-  // Code 0 Trigger Criteria:
-  // 1. At least 4 Y-axis direction reversals within 2.5s (2 full up-down cycles)
-  // 2. X-axis total variation is <= 100px (strictly linear Y-only pendulum movement, NO 2D circle/curve!)
-  if (actionTracker.yReversalTimes.length >= 4 && recentXSpan <= 100) {
-    actionTracker.yOscillationUntil = now + 1500; // Keep Code 0 active for 1.5s
-    actionTracker.yReversalTimes = []; // Reset reversal list after trigger
+  if (actionTracker.yReversalTimes.length >= 4 && recentXSpan <= 120 && recentYSpan >= 60) {
+    actionTracker.yOscillationUntil = now + 1500;
+    actionTracker.yReversalTimes = [];
   }
 
-  // Active trigger for Pure Y-Axis 4x Oscillation -> Output Code 0!
-  if (now < actionTracker.yOscillationUntil && recentXSpan <= 150) {
-    lastActiveTrigger = 0;
-    return 0;
-  }
-
-
-  // Accumulate straight X/Y linear movement to trigger Action Code 4
-  const isMovingStraight = linearSpeed >= 0.8 && rotSpeed < 0.35;
-  if (isMovingStraight) {
+  // ▸ Detector B: Straight Linear Movement (Code 4)
+  const isStraightMove = linearSpeed >= 0.8 && rotSpeed < 0.4;
+  if (isStraightMove) {
     actionTracker.straightMoveAccumulator += linearSpeed;
     if (actionTracker.straightMoveAccumulator >= 120) {
-      actionTracker.straightMoveUntil = now + 1500; // Keep Code 4 active for 1.5s upon accumulating straight movement
+      actionTracker.straightMoveUntil = now + 1500;
       actionTracker.straightMoveAccumulator = 0;
     }
   } else if (linearSpeed < 0.2) {
     actionTracker.straightMoveAccumulator = Math.max(0, actionTracker.straightMoveAccumulator - 2.0);
   } else {
-    actionTracker.straightMoveAccumulator = 0;
+    actionTracker.straightMoveAccumulator = Math.max(0, actionTracker.straightMoveAccumulator - 1.0);
   }
 
-  // Active trigger for accumulated straight linear movement -> Output Code 4!
+  // ▸ Detector C: Closed Shape / Circle Loop (Code 1)
+  const isClosedShapeNow = checkClosedShape(now);
+  if (isClosedShapeNow) {
+    actionTracker.closedShapeUntil = now + 1500;
+  }
+
+  // ▸ Detector D: Border Radial Movement (Code 6)
+  const isNearBorder = distFromCenter >= 1400;
+  const nx = distFromCenter > 0 ? (state.x - 2500) / distFromCenter : 0;
+  const ny = distFromCenter > 0 ? (state.y - 2500) / distFromCenter : 0;
+  const outwardVel = state.vx * nx + state.vy * ny;
+  const isMovingOutward = isNearBorder && (outwardVel > 0.05 || distFromCenter >= 2100);
+
+  if (isMovingOutward) {
+    actionTracker.lastBorderPauseTime = null;
+    if (!actionTracker.borderMoveStartTime) {
+      actionTracker.borderMoveStartTime = now;
+    }
+  } else {
+    if (!actionTracker.lastBorderPauseTime) {
+      actionTracker.lastBorderPauseTime = now;
+    } else if (now - actionTracker.lastBorderPauseTime > 300) {
+      actionTracker.borderMoveStartTime = null;
+      actionTracker.lastBorderPauseTime = null;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // PHASE 2: Evaluate triggers by SPECIFICITY (most specific first)
+  //          Each has EXCLUSIVE geometric criteria — no overlaps
+  // ─────────────────────────────────────────────────────────
+
+  // ▶ Code 0: Pure Y-axis pendulum (X span ≤ 150, distinct from circle's ≥ 240)
+  if (now < actionTracker.yOscillationUntil && recentXSpan <= 150) {
+    lastActiveTrigger = 0;
+    return 0;
+  }
+
+  // ▶ Code 7: Top zone proximity (y near 5000, spatial exclusive)
+  if (distToTop <= 400) {
+    lastActiveTrigger = 7;
+    return 7;
+  }
+
+  // ▶ Code 6: Border radial movement (distFromCenter ≥ 1400, sustained 800ms+)
+  if (actionTracker.borderMoveStartTime && (now - actionTracker.borderMoveStartTime >= 800)) {
+    lastActiveTrigger = 6;
+    return 6;
+  }
+
+  // ▶ Code 1: Closed shape / circle (loop bbox ≥ 240×240, pathLen ≥ 1100)
+  if (now < actionTracker.closedShapeUntil) {
+    lastActiveTrigger = 1;
+    return 1;
+  }
+
+  // ▶ Code 3: Fast rotation (rotSpeed ≥ 1.2)
+  const isRotating = keys.q || keys.Q || keys.e || keys.E || rotSpeed >= 0.15;
+  if (isRotating && rotSpeed >= 1.2) {
+    lastActiveTrigger = 3;
+    return 3;
+  }
+
+  // ▶ Code 2: Slow rotation (0.15 ≤ rotSpeed < 1.2)
+  if (isRotating && rotSpeed >= 0.15 && rotSpeed < 1.2) {
+    lastActiveTrigger = 2;
+    return 2;
+  }
+
+  // ▶ Code 4: Sustained straight linear movement
   if (now < actionTracker.straightMoveUntil) {
     lastActiveTrigger = 4;
     return 4;
   }
 
-
-  let rawAction = 4;
-
-
-  // Mode 7: (2500, 5000) 상단 영역 근접 (shifted from 6)
-  if (distToTop <= 400) {
-    rawAction = 7;
-  } else {
-    // Mode 6: 원 보더 방향 이동 (shifted from 5)
-    const isNearBorder = distFromCenter >= 1400;
-    const nx = distFromCenter > 0 ? (state.x - 2500) / distFromCenter : 0;
-    const ny = distFromCenter > 0 ? (state.y - 2500) / distFromCenter : 0;
-    const outwardVel = state.vx * nx + state.vy * ny;
-
-    const isMovingTowardBorder = isNearBorder && (
-      outwardVel > 0.05 ||
-      distFromCenter >= 2100 ||
-      (keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight)
-    );
-
-    if (isMovingTowardBorder) {
-      actionTracker.lastBorderPauseTime = null;
-      if (!actionTracker.borderMoveStartTime) {
-        actionTracker.borderMoveStartTime = now;
-      }
-      if (now - actionTracker.borderMoveStartTime >= 800) {
-        rawAction = 6;
-      }
-    } else {
-      if (!actionTracker.lastBorderPauseTime) {
-        actionTracker.lastBorderPauseTime = now;
-      } else if (now - actionTracker.lastBorderPauseTime > 300) {
-        actionTracker.borderMoveStartTime = null;
-        actionTracker.lastBorderPauseTime = null;
-      }
-    }
-
-    if (rawAction === 4) {
-      // Rotation Mode Evaluation: rotate가 느리면 2, 빠르면 3
-      const isRotating = keys.q || keys.Q || keys.e || keys.E || rotSpeed >= 0.15;
-      if (isRotating && linearSpeed < 4.0) {
-        if (rotSpeed >= 1.2) {
-          rawAction = 3; // Fast Rotation (빠른 회전)
-        } else {
-          rawAction = 2; // Slow Rotation (느린 회전)
-        }
-      } else {
-        // Mode 1: 닫힌 도형/원 이동 (Closed Shape Loop Detection)
-        const isClosedShapeNow = checkClosedShape(now);
-        if (isClosedShapeNow) {
-          actionTracker.closedShapeUntil = now + 1500; // Keep Mode 1 active for 1.5s after loop completion
-        }
-        if (now < actionTracker.closedShapeUntil) {
-          rawAction = 1;
-        }
-      }
-    }
-  }
-
-  // If a active movement trigger occurred (1, 2, 3, 6, 7), update lastActiveTrigger!
-  if (rawAction !== 4) {
-    lastActiveTrigger = rawAction;
-    return rawAction;
-  }
-
-  // When doing nothing (idle / rawAction === 4), return the last active trigger sent!
+  // ▶ Idle: no active trigger — hold last known trigger
   return lastActiveTrigger;
 }
 
