@@ -1787,60 +1787,73 @@ function render() {
   }
 
 
-  // Render Ultra-Minimalist Fine-Art Glass Ring Cursor at (screenX, screenY)
+  // Render Julia Plots.jl / MATLAB Scientific Vector Plot Marker at (screenX, screenY)
   ctx.save();
   ctx.translate(screenX, screenY);
-  ctx.rotate((state.rotation * Math.PI) / 180);
 
-  const glassRadius = 38; // Clean large diameter (76px)
+  const markerRadius = 26; // Precision scientific plot marker radius (52px diameter)
+  const radAngle = (state.rotation * Math.PI) / 180;
 
-  // 1. Subtle Translucent Ambient Glow
-  ctx.shadowColor = `hsla(${currentHue}, 100%, 70%, 0.45)`;
-  ctx.shadowBlur = 18;
+  // 1. MATLAB/Julia Quiver Vector Ray Arrow pointing in direction of state.rotation
+  const vecLength = 52; // Vector arrow length
+  const tipX = Math.sin(radAngle) * vecLength; // 0 deg is UP (-Y)
+  const tipY = -Math.cos(radAngle) * vecLength;
 
-  // 2. Translucent Pitch Dark Glass Body
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
+  ctx.save();
+  ctx.shadowColor = `hsla(${currentHue}, 100%, 65%, 0.6)`;
+  ctx.shadowBlur = 12;
+  ctx.strokeStyle = `hsla(${currentHue}, 100%, 65%, 0.95)`; // Julia/MATLAB Dynamic Vector Line
+  ctx.lineWidth = 2.2;
   ctx.beginPath();
-  ctx.arc(0, 0, glassRadius, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Reset shadow for crisp lines
-  ctx.shadowColor = 'transparent';
-  ctx.shadowBlur = 0;
-
-  // 3. Ultra-Thin Glowing Neon Outer Ring
-  ctx.strokeStyle = `hsla(${currentHue}, 100%, 65%, 0.9)`;
-  ctx.lineWidth = 2.0;
-  ctx.beginPath();
-  ctx.arc(0, 0, glassRadius, 0, Math.PI * 2);
+  ctx.moveTo(0, 0);
+  ctx.lineTo(tipX, tipY);
   ctx.stroke();
 
-  // 4. Inner Subtle Glass Rim Accent
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-  ctx.lineWidth = 1.0;
+  // Draw Arrowhead Tip for Vector Quiver
+  const arrowAngle = Math.atan2(tipY, tipX);
+  const headLen = 11;
+  ctx.fillStyle = `hsla(${currentHue}, 100%, 65%, 0.95)`;
   ctx.beginPath();
-  ctx.arc(0, 0, glassRadius - 4, 0, Math.PI * 2);
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(tipX - headLen * Math.cos(arrowAngle - Math.PI / 6), tipY - headLen * Math.sin(arrowAngle - Math.PI / 6));
+  ctx.lineTo(tipX - headLen * Math.cos(arrowAngle + Math.PI / 6), tipY - headLen * Math.sin(arrowAngle + Math.PI / 6));
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // 2. Scientific Marker Outer Circle (MATLAB 'o' plot marker)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.lineWidth = 1.8;
+  ctx.fillStyle = 'rgba(10, 16, 30, 0.65)';
+  ctx.beginPath();
+  ctx.arc(0, 0, markerRadius, 0, Math.PI * 2);
+  ctx.fill();
   ctx.stroke();
 
-  // 5. Minimalist Center Core Dot
-  ctx.fillStyle = '#FFFFFF';
-  ctx.shadowColor = '#00f3ff';
-  ctx.shadowBlur = 8;
-  ctx.beginPath();
-  ctx.arc(0, 0, 4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowColor = 'transparent';
+  // 3. Precision Scientific Radar Tick Marks at 0, 90, 180, 270 deg
+  ctx.strokeStyle = `hsla(${currentHue}, 100%, 70%, 0.75)`;
+  ctx.lineWidth = 1.2;
+  const tickInner = markerRadius - 4;
+  const tickOuter = markerRadius + 5;
+  
+  [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].forEach(ang => {
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(ang) * tickInner, Math.sin(ang) * tickInner);
+    ctx.lineTo(Math.cos(ang) * tickOuter, Math.sin(ang) * tickOuter);
+    ctx.stroke();
+  });
 
-  // 6. Sleek Minimal Direction Pointer Notch at Top Edge
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = `hsla(${currentHue}, 100%, 70%, 0.9)`;
+  // 4. Center Precision Focus Dot (Julia Plots.jl Marker Core)
+  ctx.fillStyle = '#00ff66';
+  ctx.shadowColor = '#00ff66';
   ctx.shadowBlur = 10;
   ctx.beginPath();
-  ctx.arc(0, -glassRadius, 4.5, 0, Math.PI * 2);
+  ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.shadowColor = 'transparent';
 
   ctx.restore();
+
 
 
   
