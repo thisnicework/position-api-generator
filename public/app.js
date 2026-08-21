@@ -258,8 +258,8 @@ const state = {
 
 
 const settings = {
-  maxSpeed: 75.0,          // Controlled & smooth movement speed (0..5000 map)
-  acceleration: 10.0,      // Smooth acceleration
+  maxSpeed: 120.0,         // Controlled & smooth movement speed (0..5000 map)
+  acceleration: 14.0,      // Smooth acceleration
   friction: 0.88,          // Natural deceleration
   rotationSpeed: 3.0,      // Smooth keyboard rotation speed
   maxRotationSpeed: 5.0,   // Controlled max rotation speed
@@ -1920,7 +1920,7 @@ function render() {
   ctx.save();
   ctx.translate(screenX, screenY);
 
-  const fabricRadius = 180; // Volumetric Backlight Diameter (360px)
+  const fabricRadius = 150; // Volumetric Backlight Diameter (300px)
 
   // Pure Volumetric Light Projection & Smooth Glow Gradient (No Thin Strokes/Lines)
   const fabricGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, fabricRadius);
