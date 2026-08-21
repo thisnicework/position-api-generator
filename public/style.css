@@ -151,20 +151,25 @@ body {
   font-family: 'Fira Code', monospace;
 }
 
-/* Enlarge & Highlight HUD in Screensaver Mode ('S' key) */
+/* Enlarge & Pin HUD strictly to Top-Left in Screensaver Mode ('S' key) */
 .app-container.screensaver-mode .terminal-hud-overlay,
 .main-grid.hide-controls .terminal-hud-overlay {
   opacity: 1.0 !important;
   pointer-events: auto !important;
   transform: none !important;
-  top: 24px;
-  left: 24px;
+  position: fixed !important;
+  top: 24px !important;
+  left: 24px !important;
+  right: auto !important;
+  bottom: auto !important;
   padding: 16px 24px;
   background: rgba(0, 0, 0, 0.88);
   border: 1.5px solid rgba(0, 243, 255, 0.6);
   box-shadow: 0 0 35px rgba(0, 243, 255, 0.3);
   border-radius: 10px;
+  z-index: 9999 !important;
 }
+
 
 .app-container.screensaver-mode .terminal-hud-prompt,
 .main-grid.hide-controls .terminal-hud-prompt {
