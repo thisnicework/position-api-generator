@@ -976,9 +976,10 @@ function processIncomingSerialLine(line) {
     const centerY = calibYInput ? (parseFloat(calibYInput.value) || 179) : 179;
     const maxY = calibMaxYInput ? (parseFloat(calibMaxYInput.value) || 1023) : 1023;
 
-    const minRotSpan = calibMinRotInput ? (parseFloat(calibMinRotInput.value) || 25) : 25;
-    const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 10) : 10;
-    const maxRotSpan = calibMaxRotInput ? (parseFloat(calibMaxRotInput.value) || 25) : 25;
+    const minRotSpan = calibMinRotInput ? (parseFloat(calibMinRotInput.value) || 512) : 512;
+    const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 512) : 512;
+    const maxRotSpan = calibMaxRotInput ? (parseFloat(calibMaxRotInput.value) || 512) : 512;
+
 
     // --- Step 2: Get smoothed (filtered) sensor values ---
     const smoothX = getSmoothedValue('x');
@@ -1473,9 +1474,10 @@ function loadSavedCalibration() {
   if (savedY && calibYInput) calibYInput.value = savedY;
   if (savedMaxY && calibMaxYInput) calibMaxYInput.value = savedMaxY;
 
-  if (savedMinRot && calibMinRotInput) calibMinRotInput.value = savedMinRot;
-  if (savedRot && calibRotInput) calibRotInput.value = savedRot;
-  if (savedMaxRot && calibMaxRotInput) calibMaxRotInput.value = savedMaxRot;
+  if (savedMinRot && calibMinRotInput && parseFloat(savedMinRot) >= 50) calibMinRotInput.value = savedMinRot;
+  if (savedRot && calibRotInput && parseFloat(savedRot) >= 50) calibRotInput.value = savedRot;
+  if (savedMaxRot && calibMaxRotInput && parseFloat(savedMaxRot) >= 50) calibMaxRotInput.value = savedMaxRot;
+
 }
 
 
