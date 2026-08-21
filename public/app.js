@@ -213,9 +213,32 @@ function getSmoothedValue(axis) {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-function getSmoothedRotation() {
-  return getSmoothedValue('rot');
+// Helper to calculate circular / 360-degree angle difference in [-180, +180] range
+function getCircularDiff(val, center) {
+  let diff = val - center;
+  while (diff > 180) diff -= 360;
+  while (diff < -180) diff += 360;
+  return diff;
 }
+
+function getSmoothedRotation(centerRot = 10) {
+  const arr = sensorHistory.rot;
+  if (arr.length === 0) return centerRot;
+  if (arr.length === 1) return arr[0];
+
+  // Unwrap circular difference relative to centerRot to avoid sine/cosine non-linear distortion
+  const unwrapped = arr.map(val => centerRot + getCircularDiff(val, centerRot));
+  const sorted = [...unwrapped].sort((a, b) => a - b);
+  
+  if (sorted.length >= 5) {
+    const trimmed = sorted.slice(1, sorted.length - 1);
+    const avg = trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
+    return ((avg % 360) + 360) % 360;
+  }
+  const avg = sorted.reduce((s, v) => s + v, 0) / sorted.length;
+  return ((avg % 360) + 360) % 360;
+}
+
 
 
 
@@ -976,10 +999,9 @@ function processIncomingSerialLine(line) {
     const centerY = calibYInput ? (parseFloat(calibYInput.value) || 179) : 179;
     const maxY = calibMaxYInput ? (parseFloat(calibMaxYInput.value) || 1023) : 1023;
 
-    const minRotSpan = calibMinRotInput ? (parseFloat(calibMinRotInput.value) || 512) : 512;
-    const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 512) : 512;
-    const maxRotSpan = calibMaxRotInput ? (parseFloat(calibMaxRotInput.value) || 512) : 512;
-
+    const minRotSpan = calibMinRotInput ? (parseFloat(calibMinRotInput.value) || 25) : 25;
+    const centerRot = calibRotInput ? (parseFloat(calibRotInput.value) || 10) : 10;
+    const maxRotSpan = calibMaxRotInput ? (parseFloat(calibMaxRotInput.value) || 25) : 25;
 
     // --- Step 2: Get smoothed (filtered) sensor values ---
     const smoothX = getSmoothedValue('x');
@@ -1014,16 +1036,17 @@ function processIncomingSerialLine(line) {
     }
     if (invertY) normY = -normY;
 
-    // Rotation: Piecewise deflection normalization strictly using calibrated center and spans (-1.0 ~ +1.0)
-    let diffRot = smoothRot - centerRot;
+    // Rotation: Piecewise deflection normalization (-1.0 ~ +1.0)
+    let diffRot = getCircularDiff(smoothRot, centerRot);
 
     if (invertRot) diffRot = -diffRot;
 
     if (diffRot > 0) {
-      normRot = diffRot / Math.max(1, maxRotSpan);
+      normRot = diffRot / Math.max(5, maxRotSpan);
     } else {
-      normRot = diffRot / Math.max(1, minRotSpan);
+      normRot = diffRot / Math.max(5, minRotSpan);
     }
+
 
 
 
@@ -1474,10 +1497,9 @@ function loadSavedCalibration() {
   if (savedY && calibYInput) calibYInput.value = savedY;
   if (savedMaxY && calibMaxYInput) calibMaxYInput.value = savedMaxY;
 
-  if (savedMinRot && calibMinRotInput && parseFloat(savedMinRot) >= 50) calibMinRotInput.value = savedMinRot;
-  if (savedRot && calibRotInput && parseFloat(savedRot) >= 50) calibRotInput.value = savedRot;
-  if (savedMaxRot && calibMaxRotInput && parseFloat(savedMaxRot) >= 50) calibMaxRotInput.value = savedMaxRot;
-
+  if (savedMinRot && calibMinRotInput) calibMinRotInput.value = savedMinRot;
+  if (savedRot && calibRotInput) calibRotInput.value = savedRot;
+  if (savedMaxRot && calibMaxRotInput) calibMaxRotInput.value = savedMaxRot;
 }
 
 
@@ -1505,10 +1527,19 @@ loadSavedCalibration();
 
 
 if (serialOrderSelect) {
-  serialOrderSelect.addEventListener('change', () => {
-    logTerminal('system', `Serial Order changed. Calibrated values preserved.`);
+  serialOrderSelect.addEventListener('change', (e) => {
+    if (e.target.value === 'xry') {
+      if (calibXInput) calibXInput.value = 508;
+      if (calibYInput) calibYInput.value = 179;
+      if (calibRotInput) calibRotInput.value = 10;
+    } else {
+      if (calibXInput) calibXInput.value = 508;
+      if (calibYInput) calibYInput.value = 10;
+      if (calibRotInput) calibRotInput.value = 179;
+    }
   });
 }
+
 
 
 
@@ -1899,60 +1930,26 @@ function render() {
   }
 
 
-  // --- 2. Main Light Source: Flashlight & Subtle Atmospheric Light Leakage (은은한 빔샘 효과) ---
+  // --- 2. Main Light Source: Flashlight Shining Through Circular Screen ---
   ctx.save();
   ctx.translate(screenX, screenY);
 
   const fabricRadius = 150; // Volumetric Backlight Radius (300px diameter)
 
-  // A. Subtle Anamorphic & Volumetric Light Bleed Plumes (은은한 빔샘 아우라 & 방사형 광선)
-  ctx.save();
-  ctx.rotate((state.rotation * Math.PI) / 180);
-
-  // Soft Horizontal Anamorphic Lens Flare Bleed Streak (은은한 수평 빛샘 아우라)
-  const flareGrad = ctx.createLinearGradient(-220, 0, 220, 0);
-  flareGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  flareGrad.addColorStop(0.2, `hsla(${currentHue}, 100%, 75%, 0.03)`);
-  flareGrad.addColorStop(0.5, `hsla(${currentHue}, 100%, 90%, 0.12)`);
-  flareGrad.addColorStop(0.8, `hsla(${currentHue}, 100%, 75%, 0.03)`);
-  flareGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-  ctx.fillStyle = flareGrad;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 220, 24, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Subtle Soft Radial Light Leak Plumes (은은하게 번지는 4방향 빔샘 광모를)
-  for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
-    const plumeGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, 240);
-    plumeGrad.addColorStop(0, `hsla(${currentHue}, 100%, 85%, 0.1)`);
-    plumeGrad.addColorStop(0.3, `hsla(${currentHue}, 100%, 70%, 0.04)`);
-    plumeGrad.addColorStop(0.7, `hsla(${currentHue}, 100%, 60%, 0.01)`);
-    plumeGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-    ctx.fillStyle = plumeGrad;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, 240, angle - 0.35, angle + 0.35);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.restore();
-
-  // B. Main Volumetric Light Projection & Smooth Soft Falloff
+  // Pure Volumetric Light Projection & Smooth Glow Gradient (Clean & Minimalist)
   const fabricGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, fabricRadius);
-  fabricGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)'); // Pure luminous core
-  fabricGrad.addColorStop(0.18, `hsla(${currentHue}, 100%, 85%, 0.48)`);
-  fabricGrad.addColorStop(0.42, `hsla(${currentHue}, 100%, 68%, 0.2)`);
+  fabricGrad.addColorStop(0, 'rgba(255, 255, 255, 0.85)'); // Pure central light source
+  fabricGrad.addColorStop(0.18, `hsla(${currentHue}, 100%, 82%, 0.48)`);
+  fabricGrad.addColorStop(0.42, `hsla(${currentHue}, 100%, 65%, 0.2)`);
   fabricGrad.addColorStop(0.72, `hsla(${currentHue}, 100%, 55%, 0.06)`);
-  fabricGrad.addColorStop(1, 'rgba(0, 0, 0, 0)'); // Fades smoothly into pitch black
+  fabricGrad.addColorStop(1, 'rgba(0, 0, 0, 0)'); // Fades smoothly into pitch black void
 
   ctx.fillStyle = fabricGrad;
   ctx.beginPath();
   ctx.arc(0, 0, fabricRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  // C. Flashlight Bulb Focal Point (Pure Luminous Center)
+  // Flashlight Bulb Focal Point (Pure Luminous Center)
   ctx.shadowColor = '#ffffff';
   ctx.shadowBlur = 24;
   ctx.fillStyle = '#FFFFFF';
@@ -1962,6 +1959,7 @@ function render() {
 
   ctx.shadowColor = 'transparent';
   ctx.restore();
+
 
 
 
